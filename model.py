@@ -1,93 +1,92 @@
 import torch
 import torch.nn as nn
 
+
+class DoubleConv(nn.Module):
+
+    def __init__(self, input_channels, output_channels):
+        super(DoubleConv, self).__init__()
+        self.conv = nn.Sequential(
+            nn.Conv2d(input_channels, output_channels, kernel_size=3, stride=1, padding='same'),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(output_channels, output_channels, kernel_size=3, stride=1, padding='same'),
+            nn.ReLU(inplace=True),
+        )
+
+    def forward(self, X):
+        return self.conv(X)
+
+
 class Unet(nn.Module):
 
-    # TODO: AMIR is there any need to specify the padding == 1?
-    # TODO: AMIR specifying RGB in channels?
-    # TODO: AMIR check the dimensions for sanity issues
-    # TODO: AMIR check the cropping that is happening while concatenating,what should we do with it?
-    # TODO: AMIR check the non-even pictures dimensions if there any problen we shall encounter
-    # TODO : AMIR how to initialize the weight ? the paper suggests from gaussian distribution (see UNET)
+    # NOTE - always start with an input dims divisible by 16 because we do 4 times downsampling by factor 2
+    def __init__(self, in_channels=3, out_channels=2, layers_num_channels=[64, 128, 256, 512]):
+        super(Unet, self).__init__()
+        self.down = nn.ModuleList()
+        self.up = nn.ModuleList()
 
-    #TODO : AMIR this model is without any pre-trained weights
-    # suggested models as the papers gives:
-    #   1- ResNet-V2 based
-    #   2- DenseNet-V2 based
-    #   3- maybe Nested unet
+        # down-sampling part of unet
+        for num_channels in layers_num_channels:
+            self.down.append(DoubleConv(in_channels, num_channels))
+            in_channels = num_channels
 
-    # TODO : AMIR adding batchnorm and checking if there is a bias within the weight?
-    # TODO : AMIR adding dropout layers
+        # double conv between the down and up sides
+        self.bottom = DoubleConv(layers_num_channels[-1], 2 * layers_num_channels[-1])
 
-    def __init__(self):
-        super().__init__()
+        # up-sampling part of unet
+        for num_channels in reversed(layers_num_channels):
+            self.up.extend([
+                nn.ConvTranspose2d(num_channels * 2, num_channels, 2, 2),
+                DoubleConv(2 * num_channels, num_channels)
+            ])
 
-        # The enumeration of the different layers is based on the depth
-        # for example decoderDoubleConv4 at depth = 4 in the U - arch
-        # The double convolutions within the Encoder path
-        self.encoderDoubleConv1 = self.doubleConv(1, 64)
-        self.encoderDoubleConv2 = self.doubleConv(64, 128)
-        self.encoderDoubleConv3 = self.doubleConv(128, 256)
-        self.encoderDoubleConv4 = self.doubleConv(256, 512)
-        # The last sole convolution in the Encoder path
-        self.encoderConv5 = nn.Conv2d(512, 1024, kernel_size=(3, 3))
-        self.maxPool = nn.MaxPool2d(kernel_size=(2, 2), stride=2)
+        self.final_conv = nn.Conv2d(layers_num_channels[0], out_channels, kernel_size=1)
 
-        # The double convolutions within the Decoder path
-        self.decoderConv5 = nn.Conv2d(1024, 1024, kernel_size=(3, 3))
-        self.decoderDoubleConv4 = self.doubleConv(1024, 512)
-        self.decoderDoubleConv3 = self.doubleConv(512, 256)
-        self.decoderDoubleConv2 = self.doubleConv(256, 128)
-        self.decoderDoubleConv1 = self.doubleConv(128, 64)
-
-        # The last convolutions 1X1 within the Decoder path
-        self.decoderConv1 = nn.Conv2d(64, 2, kernel_size=(1, 1))
-
-        # The up-conv within the Decoder path
-        self.decoderDeConv4 = nn.ConvTranspose2d(1024, 512, kernel_size=(2,2))
-        self.decoderDeConv3 = nn.ConvTranspose2d(512, 256, kernel_size=(2,2))
-        self.decoderDeConv2 = nn.ConvTranspose2d(256, 128, kernel_size=(2,2))
-        self.decoderDeConv1 = nn.ConvTranspose2d(128, 64, kernel_size=(2,2))
-
-        # List for the concatenations tensors
-        self.concatenationsList = []
+        # pooling layer we're going to use
+        self.pool = nn.MaxPool2d(2, 2)
 
     def forward(self, x):
 
-        # The Encoding path
-        x1 = self.encoderDoubleConv1(x)
-        self.concatenationsList.append(x1)
-        x2 = self.encoderDoubleConv2(self.maxPool(x1))
-        self.concatenationsList.append(x2)
-        x3 = self.encoderDoubleConv3(self.maxPool(x2))
-        self.concatenationsList.append(x3)
-        x4 = self.encoderDoubleConv4(self.maxPool(x3))
-        self.concatenationsList.append(x4)
+        # skip connection we aim to append in the up part
+        skip_connections = []
 
-        x5 = self.encoderConv5(self.maxPool(x4))
-        # The Decoding path
-        x6 = self.decoderDeConv4(self.decoderConv5(x5))
+        # forward on the down part
+        for down in self.down:
+            x = down(x)
+            skip_connections.append(x)
+            x = self.pool(x)
 
-        # The Decoding path
-        # TODO: AMIR what the dim of the channel concatenation, modilfy the dim=1!
-        x7 = self.decoderDoubleConv4(torch.concat([self.concatenationsList.pop(), x5], dim=1))
-        x8 = self.decoderDoubleConv3(self.decoderDeConv3(x7))
-        x9 = self.decoderDoubleConv2(self.decoderDeConv2(x8))
-        x10 = self.decoderDoubleConv1(self.decoderDeConv1(x9))
+        # forward on the bottom
+        x = self.bottom(x)
 
-        outputSegmentationMap = self.decoderConv1(x10)
+        skip_connections.reverse()
 
-        return outputSegmentationMap
+        # forward on the up part
+        for index in range(0, len(self.up), 2):
+            x = self.up[index](x)
+            skip_connection = (skip_connections[index // 2])
 
-    @staticmethod
-    def doubleConv(input_channels, output_channels) -> nn.Sequential:
-        doubleConv = nn.Sequential(
-            nn.Conv2d(input_channels, output_channels, kernel_size=(3, 3)),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(output_channels, output_channels, kernel_size=(3, 3)),
-            nn.ReLU(inplace=True)
-        )
-        return doubleConv
+            # happens if we didn't start with dimensions divisible by 16
+            if x.shape != skip_connection.shape:
+                print(f'x shape is {x.shape}, skip_connection_shape is {skip_connection.shape}')
+                print("start with dimensions divisible by 16, or think how to solve it")
+                raise IndexError
+
+            concat_x = torch.cat((x, skip_connection), dim=1)
+            x = self.up[index + 1](concat_x)
+
+        return self.final_conv(x)
 
 
+def test():
+    x = torch.randn((3, 1, 160, 160))
+    model = Unet(in_channels=1, out_channels=1)
+    pred = model(x)
+    print(f'x.shape = {x.shape}')
+    print(f'pred.shape = {pred.shape}')
+    assert x.shape == pred.shape
+    print("dimensions of network are OK...")
 
+
+if __name__ == "__main__":
+    test()
