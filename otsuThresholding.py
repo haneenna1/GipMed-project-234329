@@ -18,7 +18,7 @@ def segmentationPerImage(thumbFile: str, outPath: str, magnification):
     thumb = PIL.Image.open(thumbFile)
 
     # this helps avoid the grid, we don't have it within our datasets
-    use_otsu3 = False
+    use_otsu3 = True
     thmb_seg_map, edge_image = segmentationPerImageInt(thumb, magnification, use_otsu3=use_otsu3)
     thmb_seg_image = PIL.Image.blend(thumb, edge_image, 0.5)
 
@@ -160,3 +160,14 @@ def otsu3(img)->(int,int):
                 fn_min = fn
                 thresh = i, j
     return thresh
+
+def segmentation(inputDir:str, outputDir:str):
+    if not os.path.exists(inputDir) or os.path.exists(outputDir):
+        print("ERROR : check the existence of the input you've provided")
+    for index, thumb in enumerate(os.listdir(inputDir)):
+        thumbPath = os.path.join(inputDir,thumb)
+        print("starting the method for thumb #"+str(index))
+        segmentationPerImage(thumbPath, outputDir, 20)
+
+if __name__ == "__main__":
+    segmentation("./Data/ABCTB_TIF/Thumbs","./Data/ABCTB_TIF/segData")
