@@ -1,4 +1,7 @@
-
+import torch
+from torch import nn
+import torch.optim as optim
+from model import Unet
 from train import Train
 
 # Setting the device for the Training
@@ -15,11 +18,11 @@ def main():
     optimizer = optim.Adam(model.parameters(), lr = LEARNING_RATE)
     loss_fn = nn.BCEWithLogitsLoss()
     img_dir = ""
-    maks_dir = ""
+    mask_dir = ""
     train_transform = []
-    val_transforms = []
-    hyper_paramas = {lr:LEARNING_RATE, num_epochs:NUM_EPOCHS, 
-                       batch_size:BATCH_SIZE, pin_memory:PIN_MEMPRY, num_workers:NUM_WORKERS }
+    val_transform = []
+    hyper_paramas = {"lr":LEARNING_RATE, "num_epochs":NUM_EPOCHS,
+                       "batch_size":BATCH_SIZE, "pin_memory":PIN_MEMPRY, "num_workers":NUM_WORKERS }
     
     trainer = Train(model, optimizer, loss_fn, img_dir, mask_dir, train_transform, val_transform, hyper_paramas)
     trainer.train()
