@@ -57,63 +57,63 @@ def save_predictions_as_imgs(loader, model, folder="saved_images/", device="cuda
     model.train()
 
 
-def gettingDataFolders() -> tuple[list, list]:
-    image_dirs = []
-    mask_dirs = []
-    basePath = "/mnt/gipmed_new/Data/Breast/"
-    datasetsNames = ["ABCTB_TIF", "Carmel", "Covilha", "Haemek",
-                     "HEROHE", "Ipatimup", "Sheba", "TCGA", "TMA"]
-    for dataset in datasetsNames:
-        # should check the big sizes of TCGA, HEROHE, IPATIMUP, COVILHA
-        if dataset in ["ABCTB_TIF", "Covilha", "HEROHE", "Ipatimup", "TCGA"]:
-            image_dirs.append(os.path.join(basePath, dataset, "SegData", "Thumbs"))
-            mask_dirs.append(os.path.join(basePath, dataset, "SegData", "SegMaps"))
-        if dataset == "Carmel":
-            for counter in range(1, 12):
-                if counter <= 8:
-                    folder = "1-8"
-                else:
-                    folder = "9-11"
+# def gettingDataFolders() -> tuple[list, list]:
+#     image_dirs = []
+#     mask_dirs = []
+#     basePath = "/mnt/gipmed_new/Data/Breast/"
+#     datasetsNames = ["ABCTB_TIF", "Carmel", "Covilha", "Haemek",
+#                      "HEROHE", "Ipatimup", "Sheba", "TCGA", "TMA"]
+#     for dataset in datasetsNames:
+#         # should check the big sizes of TCGA, HEROHE, IPATIMUP, COVILHA
+#         if dataset in ["ABCTB_TIF", "Covilha", "HEROHE", "Ipatimup", "TCGA"]:
+#             image_dirs.append(os.path.join(basePath, dataset, "SegData", "Thumbs"))
+#             mask_dirs.append(os.path.join(basePath, dataset, "SegData", "SegMaps"))
+#         if dataset == "Carmel":
+#             for counter in range(1, 12):
+#                 if counter <= 8:
+#                     folder = "1-8"
+#                 else:
+#                     folder = "9-11"
 
-                image_dirs.append(os.path.join(basePath, dataset, folder,
-                                               "Batch_" + str(counter), "CARMEL" + str(counter),
-                                               "SegData", "Thumbs"))
-                mask_dirs.append(os.path.join(basePath, dataset, folder,
-                                              "Batch_" + str(counter), "CARMEL" + str(counter),
-                                              "SegData", "SegMaps"))
-            for counter in range(1, 5):
-                image_dirs.append(os.path.join(basePath, dataset, "BENIGN",
-                                               "Batch_" + str(counter), "BENIGN" + str(counter),
-                                               "SegData", "Thumbs"))
-                mask_dirs.append(os.path.join(basePath, dataset, "BENIGN",
-                                              "Batch_" + str(counter), "BENIGN" + str(counter),
-                                              "SegData", "SegMaps"))
-        if dataset == "Sheba":
-            for counter in range(2, 7):
-                image_dirs.append(os.path.join(basePath, dataset,
-                                               "Batch_" + str(counter), "SHEBA" + str(counter),
-                                               "SegData", "Thumbs"))
-                mask_dirs.append(os.path.join(basePath, dataset,
-                                              "Batch_" + str(counter), "SHEBA" + str(counter),
-                                              "SegData", "SegMaps"))
-        if dataset == "Haemek":
-            for counter in range(1, 2):
-                image_dirs.append(os.path.join(basePath, dataset,
-                                               "Batch_" + str(counter), "HAEMK" + str(counter),
-                                               "SegData", "Thumbs"))
-                mask_dirs.append(os.path.join(basePath, dataset,
-                                              "Batch_" + str(counter), "HAEMK" + str(counter),
-                                              "SegData", "SegMaps"))
+#                 image_dirs.append(os.path.join(basePath, dataset, folder,
+#                                                "Batch_" + str(counter), "CARMEL" + str(counter),
+#                                                "SegData", "Thumbs"))
+#                 mask_dirs.append(os.path.join(basePath, dataset, folder,
+#                                               "Batch_" + str(counter), "CARMEL" + str(counter),
+#                                               "SegData", "SegMaps"))
+#             for counter in range(1, 5):
+#                 image_dirs.append(os.path.join(basePath, dataset, "BENIGN",
+#                                                "Batch_" + str(counter), "BENIGN" + str(counter),
+#                                                "SegData", "Thumbs"))
+#                 mask_dirs.append(os.path.join(basePath, dataset, "BENIGN",
+#                                               "Batch_" + str(counter), "BENIGN" + str(counter),
+#                                               "SegData", "SegMaps"))
+#         if dataset == "Sheba":
+#             for counter in range(2, 7):
+#                 image_dirs.append(os.path.join(basePath, dataset,
+#                                                "Batch_" + str(counter), "SHEBA" + str(counter),
+#                                                "SegData", "Thumbs"))
+#                 mask_dirs.append(os.path.join(basePath, dataset,
+#                                               "Batch_" + str(counter), "SHEBA" + str(counter),
+#                                               "SegData", "SegMaps"))
+#         if dataset == "Haemek":
+#             for counter in range(1, 2):
+#                 image_dirs.append(os.path.join(basePath, dataset,
+#                                                "Batch_" + str(counter), "HAEMK" + str(counter),
+#                                                "SegData", "Thumbs"))
+#                 mask_dirs.append(os.path.join(basePath, dataset,
+#                                               "Batch_" + str(counter), "HAEMK" + str(counter),
+#                                               "SegData", "SegMaps"))
 
-        if dataset == "TMA":  # other data in this dataset don't have masks
-            image_dirs.append(os.path.join(basePath, dataset, "bliss_data/01-011/HE/TMA_HE_01-011",
-                                           "SegData", "Thumbs"))
-            mask_dirs.append(os.path.join(basePath, dataset, "bliss_data/01-011/HE/TMA_HE_01-011",
-                                          "SegData", "SegMaps"))
-        return image_dirs, mask_dirs
+#         if dataset == "TMA":  # other data in this dataset don't have masks
+#             image_dirs.append(os.path.join(basePath, dataset, "bliss_data/01-011/HE/TMA_HE_01-011",
+#                                            "SegData", "Thumbs"))
+#             mask_dirs.append(os.path.join(basePath, dataset, "bliss_data/01-011/HE/TMA_HE_01-011",
+#                                           "SegData", "SegMaps"))
+#         return image_dirs, mask_dirs
 
 
-def get_data_loaders(img_dirs: list[str], mask_dirs: list[str], batch_size = 3, train_transforms = None, val_transforms = None, num_workers = 2,
+def get_data_loaders(img_dirs, mask_dirs, batch_size = 3, train_transforms = None, val_transforms = None, num_workers = 2,
                 pin_memory = False):
     """
     returns train and validation data loaders
@@ -134,6 +134,7 @@ def get_data_loaders(img_dirs: list[str], mask_dirs: list[str], batch_size = 3, 
 
     for img_dir, mask_dir in zip(img_dirs,mask_dirs):
         dataset = ThumbnailsDataset(img_dir, mask_dir)
+        print(len(dataset))
         train_set, validation_set = random_split(dataset, [1-VALIDATION_RATIO, VALIDATION_RATIO], generator=torch.Generator().manual_seed(MANUAL_SEED))
         train_set.transform = train_transforms
         validation_set.transform = val_transforms
@@ -154,8 +155,7 @@ def get_data_loaders(img_dirs: list[str], mask_dirs: list[str], batch_size = 3, 
 
 
 def test():
-    dirs = gettingDataFolders()
-    print(dirs)
+    train_loader, val_loader = get_data_loaders(['/mnt/gipmed_new/Data/Breast/TCGA/thumbs/'], ['/mnt/gipmed_new/Data/Breast/TCGA/SegData/Thumbs/'],)
     
     
 if __name__ == '__main__':

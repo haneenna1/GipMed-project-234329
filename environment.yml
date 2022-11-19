@@ -19,7 +19,7 @@ dependencies:
   - swig # needed to compile box2d
   - tqdm
   # pytorch
-  - pytorch=1.10.1
+  - pytorch
   - cudatoolkit
   - torchvision
   - torchtext

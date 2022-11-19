@@ -17,7 +17,7 @@ class ThumbnailsDataset(Dataset):
         self.images = os.listdir(image_dir)
 
     def __len__(self):
-        return len(self.indices)
+        return len(self.images)
 
     def __getitem__(self, idx):
         img_path = os.path.join(self.image_dir, self.images[idx])
