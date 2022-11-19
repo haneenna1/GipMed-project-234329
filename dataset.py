@@ -10,20 +10,18 @@ import matplotlib.pyplot as plt
 
 
 class ThumbnailsDataset(Dataset):
-    def __init__(self, image_dir, mask_dir, indices, transform=None):
+    def __init__(self, image_dir, mask_dir, transform=None):
         self.image_dir = image_dir
         self.mask_dir = mask_dir
         self.transform = transform
         self.images = os.listdir(image_dir)
-        self.indices = indices
 
     def __len__(self):
         return len(self.indices)
 
     def __getitem__(self, idx):
-        img_path = os.path.join(self.image_dir, self.images[self.indices[idx]])
-        mask_path = os.path.join(self.mask_dir, self.images[self.indices[idx]].replace(".jpg",
-                                                                                       "_mask.png"))  # TODO: check again the suffix in gipDeep
+        img_path = os.path.join(self.image_dir, self.images[idx])
+        mask_path = os.path.join(self.mask_dir, self.images[idx].replace(".jpg", "_mask.png"))  # TODO: check again the suffix in gipDeep
 
         image = read_image(img_path)
         mask = read_image(mask_path, mode=ImageReadMode.GRAY)

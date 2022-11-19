@@ -4,9 +4,7 @@ import numpy as np
 import torch
 import torchvision
 from torch.utils.checkpoint import checkpoint
-from torch.utils.data import DataLoader
-from torch.utils.data import ConcatDataset
-
+from torch.utils.data import DataLoader, ConcatDataset, random_split
 from dataset import ThumbnailsDataset
 
 
@@ -115,8 +113,8 @@ def gettingDataFolders() -> tuple[list, list]:
         return image_dirs, mask_dirs
 
 
-def get_loaders(img_dirs: list[str], mask_dirs: list[str], batch_size, train_transforms, val_transforms, num_workers,
-                pin_memory):
+def get_data_loaders(img_dirs: list[str], mask_dirs: list[str], batch_size = 3, train_transforms = None, val_transforms = None, num_workers = 2,
+                pin_memory = False):
     """
     returns train and validation data loaders
     Args:
@@ -129,34 +127,36 @@ def get_loaders(img_dirs: list[str], mask_dirs: list[str], batch_size, train_tra
     pin_memory
     """
     VALIDATION_RATIO = 0.2
-    RANDOM_SEED = 42
+    MANUAL_SEED = 42
 
-    trainDatasetList = []
-    validationDatasetList = []
+    train_set_list = []
+    validation_set_list = []
 
     for img_dir, mask_dir in zip(img_dirs,mask_dirs):
-        imagesNum = len(os.listdir(img_dir))
-        validationNum = int(imagesNum * VALIDATION_RATIO)
-        indices = list(range(imagesNum))
+        dataset = ThumbnailsDataset(img_dir, mask_dir)
+        train_set, validation_set = random_split(dataset, [1-VALIDATION_RATIO, VALIDATION_RATIO], generator=torch.Generator().manual_seed(MANUAL_SEED))
+        train_set.transform = train_transforms
+        validation_set.transform = val_transforms
 
-        np.random.seed(RANDOM_SEED)
-        np.random.shuffle(indices)
-        train_indices, val_indices = indices[validationNum:], indices[:validationNum]
+        train_set_list.append(train_set)
+        validation_set_list.append(validation_set)
 
-        trainDataset = ThumbnailsDataset(img_dir, mask_dir, train_indices, train_transforms)
-        validationDataset = ThumbnailsDataset(img_dir, mask_dir, val_indices, val_transforms)
+    concatened_train_set = ConcatDataset(train_set_list)
+    concatenedValidationDataset = ConcatDataset(validation_set_list)
 
-        trainDatasetList.append(trainDataset)
-        validationDatasetList.append(validationDataset)
-
-    concatenedTrainDataset = ConcatDataset(trainDatasetList)
-    concatenedValidationDataset = ConcatDataset(validationDatasetList)
-
-
-    trainLoader = DataLoader(dataset=concatenedTrainDataset, batch_size=batch_size, shuffle=True, num_workers=num_workers,
+    trainLoader = DataLoader(dataset=concatened_train_set, batch_size=batch_size, shuffle=True, num_workers=num_workers,
                              pin_memory=pin_memory)
     validationLoader = DataLoader(dataset=concatenedValidationDataset, batch_size=batch_size, shuffle=True,
                                   num_workers=num_workers,
                                   pin_memory=pin_memory)
 
     return trainLoader, validationLoader
+
+
+def test():
+    dirs = gettingDataFolders()
+    print(dirs)
+    
+    
+if __name__ == '__main__':
+    test()
