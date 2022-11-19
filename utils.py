@@ -5,6 +5,7 @@ import torch
 import torchvision
 from torch.utils.checkpoint import checkpoint
 from torch.utils.data import DataLoader
+from torch.utils.data import ConcatDataset
 
 from dataset import ThumbnailsDataset
 
@@ -58,7 +59,64 @@ def save_predictions_as_imgs(loader, model, folder="saved_images/", device="cuda
     model.train()
 
 
-def get_loaders(img_dir, mask_dir, batch_size, train_transforms, val_transforms, num_workers, pin_memory):
+def gettingDataFolders() -> tuple[list, list]:
+    image_dirs = []
+    mask_dirs = []
+    basePath = "/mnt/gipmed_new/Data/Breast/"
+    datasetsNames = ["ABCTB_TIF", "Carmel", "Covilha", "Haemek",
+                     "HEROHE", "Ipatimup", "Sheba", "TCGA", "TMA"]
+    for dataset in datasetsNames:
+        # should check the big sizes of TCGA, HEROHE, IPATIMUP, COVILHA
+        if dataset in ["ABCTB_TIF", "Covilha", "HEROHE", "Ipatimup", "TCGA"]:
+            image_dirs.append(os.path.join(basePath, dataset, "SegData", "Thumbs"))
+            mask_dirs.append(os.path.join(basePath, dataset, "SegData", "SegMaps"))
+        if dataset == "Carmel":
+            for counter in range(1, 12):
+                if counter <= 8:
+                    folder = "1-8"
+                else:
+                    folder = "9-11"
+
+                image_dirs.append(os.path.join(basePath, dataset, folder,
+                                               "Batch_" + str(counter), "CARMEL" + str(counter),
+                                               "SegData", "Thumbs"))
+                mask_dirs.append(os.path.join(basePath, dataset, folder,
+                                              "Batch_" + str(counter), "CARMEL" + str(counter),
+                                              "SegData", "SegMaps"))
+            for counter in range(1, 5):
+                image_dirs.append(os.path.join(basePath, dataset, "BENIGN",
+                                               "Batch_" + str(counter), "BENIGN" + str(counter),
+                                               "SegData", "Thumbs"))
+                mask_dirs.append(os.path.join(basePath, dataset, "BENIGN",
+                                              "Batch_" + str(counter), "BENIGN" + str(counter),
+                                              "SegData", "SegMaps"))
+        if dataset == "Sheba":
+            for counter in range(2, 7):
+                image_dirs.append(os.path.join(basePath, dataset,
+                                               "Batch_" + str(counter), "SHEBA" + str(counter),
+                                               "SegData", "Thumbs"))
+                mask_dirs.append(os.path.join(basePath, dataset,
+                                              "Batch_" + str(counter), "SHEBA" + str(counter),
+                                              "SegData", "SegMaps"))
+        if dataset == "Haemek":
+            for counter in range(1, 2):
+                image_dirs.append(os.path.join(basePath, dataset,
+                                               "Batch_" + str(counter), "HAEMK" + str(counter),
+                                               "SegData", "Thumbs"))
+                mask_dirs.append(os.path.join(basePath, dataset,
+                                              "Batch_" + str(counter), "HAEMK" + str(counter),
+                                              "SegData", "SegMaps"))
+
+        if dataset == "TMA":  # other data in this dataset don't have masks
+            image_dirs.append(os.path.join(basePath, dataset, "bliss_data/01-011/HE/TMA_HE_01-011",
+                                           "SegData", "Thumbs"))
+            mask_dirs.append(os.path.join(basePath, dataset, "bliss_data/01-011/HE/TMA_HE_01-011",
+                                          "SegData", "SegMaps"))
+        return image_dirs, mask_dirs
+
+
+def get_loaders(img_dirs: list[str], mask_dirs: list[str], batch_size, train_transforms, val_transforms, num_workers,
+                pin_memory):
     """
     returns train and validation data loaders
     Args:
@@ -72,20 +130,32 @@ def get_loaders(img_dir, mask_dir, batch_size, train_transforms, val_transforms,
     """
     VALIDATION_RATIO = 0.2
     RANDOM_SEED = 42
-    imagesNum = len(os.listdir(img_dir))
-    validationNum = int(imagesNum * VALIDATION_RATIO)
-    indices = list(range(imagesNum))
 
-    np.random.seed(RANDOM_SEED)
-    np.random.shuffle(indices)
-    train_indices, val_indices = indices[validationNum:], indices[:validationNum]
+    trainDatasetList = []
+    validationDatasetList = []
 
-    trainDataset = ThumbnailsDataset(img_dir, mask_dir, train_indices, train_transforms)
-    validationDataset = ThumbnailsDataset(img_dir, mask_dir, val_indices, val_transforms)
+    for img_dir, mask_dir in zip(img_dirs,mask_dirs):
+        imagesNum = len(os.listdir(img_dir))
+        validationNum = int(imagesNum * VALIDATION_RATIO)
+        indices = list(range(imagesNum))
 
-    trainLoader = DataLoader(dataset=trainDataset, batch_size=batch_size, shuffle=True, num_workers=num_workers,
+        np.random.seed(RANDOM_SEED)
+        np.random.shuffle(indices)
+        train_indices, val_indices = indices[validationNum:], indices[:validationNum]
+
+        trainDataset = ThumbnailsDataset(img_dir, mask_dir, train_indices, train_transforms)
+        validationDataset = ThumbnailsDataset(img_dir, mask_dir, val_indices, val_transforms)
+
+        trainDatasetList.append(trainDataset)
+        validationDatasetList.append(validationDataset)
+
+    concatenedTrainDataset = ConcatDataset(trainDatasetList)
+    concatenedValidationDataset = ConcatDataset(validationDatasetList)
+
+
+    trainLoader = DataLoader(dataset=concatenedTrainDataset, batch_size=batch_size, shuffle=True, num_workers=num_workers,
                              pin_memory=pin_memory)
-    validationLoader = DataLoader(dataset=validationDataset, batch_size=batch_size, shuffle=True,
+    validationLoader = DataLoader(dataset=concatenedValidationDataset, batch_size=batch_size, shuffle=True,
                                   num_workers=num_workers,
                                   pin_memory=pin_memory)
 

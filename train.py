@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
 from model import Unet
+from utils import gettingDataFolders
 
 from dataset import ThumbnailsDataset
 from utils import save_checkpoint, load_checkpoint, get_loaders, check_accuracy, save_predictions_as_imgs
@@ -20,7 +21,8 @@ class Train:
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=hyper_paramas["lr"])
         self.loss_fn = loss_fn
         self.hyper_params = hyper_paramas
-        self.train_loader, self.val_loader = get_loaders(img_dir, mask_dir, hyper_paramas["batch_size"],
+        img_dirs, mask_dirs = gettingDataFolders()
+        self.train_loader, self.val_loader = get_loaders(img_dirs, mask_dirs, hyper_paramas["batch_size"],
                                                          train_transform, val_transform,
                                                          hyper_paramas["num_workers"], hyper_paramas["pin_memory"])
 
