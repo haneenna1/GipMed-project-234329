@@ -18,7 +18,7 @@ class Train:
         if load_model:
             load_checkpoint(self.model)
 
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=hyper_paramas["lr"])
+        self.optimizer = optimizer
         self.loss_fn = loss_fn
         self.hyper_params = hyper_paramas
         img_dirs, mask_dirs = gettingDataFolders()
@@ -58,5 +58,5 @@ class Train:
             )
             # save model every two epochs
             if (epoch % 2 == 0):
-                checkpoint = {"model": self.model.state_dict(), "optimizer": self.optimizer.state_dict()}
+                checkpoint = {model: self.model.state_dict(), optimizer: self.optimizer.state_dict()}
                 save_checkpoint(checkpoint)
