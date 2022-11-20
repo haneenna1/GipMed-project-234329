@@ -6,7 +6,7 @@ import torchvision
 from torch.utils.checkpoint import checkpoint
 from torch.utils.data import DataLoader, ConcatDataset, random_split
 from dataset import ThumbnailsDataset
-
+import matplotlib.pyplot as plt
 
 def save_checkpoint(state, filename="my_checkpoint.pth.tar"):
     print("=> Saving checkpoint")
@@ -15,7 +15,7 @@ def save_checkpoint(state, filename="my_checkpoint.pth.tar"):
 
 def load_checkpoint(model, filename="my_checkpoint.pth.tar"):
     print("=> Loading checkpoint")
-    check_point = torch.load(filename)
+    checkpoint = torch.load(filename)
     model.load_state_dict(checkpoint["model"])
 
 
@@ -158,7 +158,16 @@ def test():
     train_loader, val_loader = get_data_loaders(['/mnt/gipmed_new/Data/Breast/TCGA/thumbs/'], ['/mnt/gipmed_new/Data/Breast/TCGA/SegData/Thumbs/'],)
     print("train_size = ", len(train_loader))
     print("validation_size = ", len(val_loader))
-
+    
+     # Display image and label.
+    train_imgs, train_masks= next(iter(train_loader))
+    print(f"Feature batch shape: {train_imgs.size()}")
+    print(f"Labels batch shape: {train_masks.size()}")
+    img = train_imgs[0].squeeze()
+    label = train_masks[0]
+    plt.imshow(img)
+    plt.show()
+    print(f"Label: {label}")
     
 if __name__ == '__main__':
     test()

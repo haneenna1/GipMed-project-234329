@@ -19,13 +19,11 @@ def main():
     loss_fn = nn.BCEWithLogitsLoss()
     img_dir = ""
     mask_dir = ""
-    train_transform = []
-    val_transform = []
-    hyper_paramas = {lr:LEARNING_RATE, num_epochs:NUM_EPOCHS,
-                       batch_size:BATCH_SIZE, pin_memory:PIN_MEMPRY, num_workers:NUM_WORKERS }
+    hyper_paramas = {'lr':LEARNING_RATE, 'num_epochs':NUM_EPOCHS,
+                       'batch_size':BATCH_SIZE, 'pin_memory':PIN_MEMPRY, 'num_workers':NUM_WORKERS }
     
-    trainer = Train(model, optimizer, loss_fn, img_dir, mask_dir, train_transform, val_transform, hyper_paramas)
-    trainer.train()
+    train= Train(model, optimizer, loss_fn, img_dir, mask_dir, hyper_paramas)
+    train()
     
 
 if __name__ == "__main__": 

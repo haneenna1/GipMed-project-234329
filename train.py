@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
-from model import Unet
 from utils import gettingDataFolders
 
 from dataset import ThumbnailsDataset
@@ -10,8 +9,8 @@ from utils import save_checkpoint, load_checkpoint, get_loaders, check_accuracy,
 
 
 class Train:
-    def __init__(self, model, optimizer, loss_fn, img_dir, mask_dir,
-                 train_transform, val_transform, hyper_paramas, load_model):
+    def __init__(self, model, optimizer, loss_fn, img_dir, mask_dir, hyper_paramas,
+                 train_transform = None, val_transform = None,  load_model = False):
 
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         self.model = model
@@ -21,15 +20,15 @@ class Train:
         self.optimizer = optimizer
         self.loss_fn = loss_fn
         self.hyper_params = hyper_paramas
-        img_dirs, mask_dirs = gettingDataFolders()
-        self.train_loader, self.val_loader = get_loaders(img_dirs, mask_dirs, hyper_paramas["batch_size"],
+        # img_dirs, mask_dirs = gettingDataFolders()
+        self.train_loader, self.val_loader = get_loaders(img_dir, mask_dir, hyper_paramas["batch_size"],
                                                          train_transform, val_transform,
                                                          hyper_paramas["num_workers"], hyper_paramas["pin_memory"])
 
     def train_epoch(self):
         loop = tqdm(self.train_loader)
 
-        for batch_index, (data, targets) in enumerate(loop):  # each iteration is one epoch
+        for batch_num, (data, targets) in enumerate(loop):  # each iteration is one epoch
             data = data.to(self.device)
             targets = targets.to(self.device)  # check if need to unsqueeze
 
@@ -43,9 +42,9 @@ class Train:
             self.optimizer.step()
 
             # update tqdm
-            loop.set_postfix(loss=loss.item())
+            loop.set_postfix(batch_num = batch_num ,loss=loss.item())
 
-    def train(self):
+    def __call__(self):
         for epoch in range(self.hyper_params.num_epochs):
             self.train_epoch()
 
@@ -58,5 +57,5 @@ class Train:
             )
             # save model every two epochs
             if (epoch % 2 == 0):
-                checkpoint = {model: self.model.state_dict(), optimizer: self.optimizer.state_dict()}
+                checkpoint = {'model': self.model.state_dict(), 'optimizer': self.optimizer.state_dict()}
                 save_checkpoint(checkpoint)
