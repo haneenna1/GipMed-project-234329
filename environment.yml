@@ -5,7 +5,7 @@ channels:
   - defaults
 dependencies:
   # common
-  - mkl < 2022  #for windows, better try to remove this line 
+  # - mkl < 2022  #for windows, better try to remove this line 
   - jupyter
   - jupyterlab
   - matplotlib

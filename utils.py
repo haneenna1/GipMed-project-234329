@@ -156,7 +156,9 @@ def get_data_loaders(img_dirs, mask_dirs, batch_size = 3, train_transforms = Non
 
 def test():
     train_loader, val_loader = get_data_loaders(['/mnt/gipmed_new/Data/Breast/TCGA/thumbs/'], ['/mnt/gipmed_new/Data/Breast/TCGA/SegData/Thumbs/'],)
-    
+    print("train_size = ", len(train_loader))
+    print("validation_size = ", len(val_loader))
+
     
 if __name__ == '__main__':
     test()
