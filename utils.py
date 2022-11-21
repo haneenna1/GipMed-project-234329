@@ -9,6 +9,7 @@ from torch.utils.data import DataLoader, Subset
 from dataset import ThumbnailsDataset
 import matplotlib.pyplot as plt
 import sklearn.model_selection
+from PIL.Image import Image
 
 def save_checkpoint(state, filename="my_checkpoint.pth.tar"):
     print("=> Saving checkpoint")
@@ -165,6 +166,24 @@ def get_data_loaders(img_dir, mask_dir, batch_size = 3, num_workers = 2, train_t
 
     return trainLoader, validationLoader
 
+# For extracting the images sizes
+def extractingPhotosProperties(img_dirs):
+    image_sizes = []
+    # img_dirs, _ = gettingDataFolders()
+    for img_dir in img_dirs:
+        images = os.listdir(img_dir)
+        for img in images:
+            if not img.endswith(".jpg"):
+                continue
+            imagePath = os.path.join(img_dir,img)
+            image = Image.open(imagePath)
+            image_sizes.append(image.size)
+    min_width = min([tuple[0] for tuple in image_sizes])
+    min_height = min([tuple[1] for tuple in image_sizes])
+    max_width = max([tuple[0] for tuple in image_sizes])
+    max_height = max([tuple[1] for tuple in image_sizes])
+    print("the min (width,height) of an image is : "+str(min_width)+","+str(min_height))
+    print("the max (width,height) of an image is : "+str(max_width)+","+str(max_height))
 
 def test():
     img_dir = "/mnt/gipmed_new/Data/Breast/TCGA/SegData/Thumbs"
