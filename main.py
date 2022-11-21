@@ -23,8 +23,8 @@ def main():
     model = Unet(in_channels=3, out_channels=1).to(DEVICE)
     optimizer = optim.Adam(model.parameters(), lr = LEARNING_RATE)
     loss_fn = nn.BCEWithLogitsLoss()
-    img_dir = "dummy_data/carvana_train_images"
-    mask_dir = "dummy_data/carvana_train_masks"
+    img_dir = "/mnt/gipmed_new/Data/Breast/TCGA/SegData/Thumbs"
+    mask_dir = "/mnt/gipmed_new/Data/Breast/TCGA/SegData/SegMaps"
     hyper_paramas = {'lr':LEARNING_RATE, 'num_epochs':NUM_EPOCHS,
                        'batch_size':BATCH_SIZE, 'pin_memory':PIN_MEMPRY, 'num_workers':NUM_WORKERS }
     

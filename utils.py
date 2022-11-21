@@ -1,4 +1,5 @@
 import os
+import random
 
 import numpy as np
 import torch
@@ -113,9 +114,8 @@ def save_predictions_as_imgs(loader, model, folder="saved_images/", device="cuda
 #                                           "SegData", "SegMaps"))
 #         return image_dirs, mask_dirs
 
-    
-def get_data_loaders(img_dir, mask_dir, batch_size = 3, train_transforms = None, val_transforms = None, num_workers = 2,
-                pin_memory = False):
+def get_data_loaders(img_dir, mask_dir, batch_size = 3, num_workers = 2, train_transforms = None, val_transforms = None,
+                 num_imgs = 30,pin_memory = False):
     """
     returns train and validation data loaders
     Args:
@@ -133,8 +133,11 @@ def get_data_loaders(img_dir, mask_dir, batch_size = 3, train_transforms = None,
     # train_set_list = []
     # validation_set_list = []
     # for img_dir, mask_dir in zip(img_dirs,mask_dirs):
-    dir_indices = range(len(os.listdir(img_dir)))
-    train_indices, val_indices = sklearn.model_selection.train_test_split(dir_indices, test_size = VALIDATION_RATIO, random_state = MANUAL_SEED )
+    full_dir_indices = range(len(os.listdir(img_dir)))
+    # we want a subset of the data
+    chosen_dir_indices = random.choices(full_dir_indices, k = num_imgs)
+
+    train_indices, val_indices = sklearn.model_selection.train_test_split(chosen_dir_indices, test_size = VALIDATION_RATIO, random_state = MANUAL_SEED )
     train_set = ThumbnailsDataset(img_dir, mask_dir, train_indices, transform= train_transforms)
     validation_set =  ThumbnailsDataset(img_dir, mask_dir, val_indices, transform=val_transforms)
     print(f'length of train  :{len(train_set)} lengt of validation: {len(validation_set)}')
@@ -164,11 +167,12 @@ def get_data_loaders(img_dir, mask_dir, batch_size = 3, train_transforms = None,
 
 
 def test():
-    img_dir = "dummy_data/carvana_train_images"
-    mask_dir = "dummy_data/carvana_train_masks"
-    train_loader, val_loader = get_data_loaders(img_dir, mask_dir)
-    print("train_size = ", len(train_loader))
-    print("validation_size = ", len(val_loader))
+    img_dir = "/mnt/gipmed_new/Data/Breast/TCGA/SegData/Thumbs"
+    mask_dir = "/mnt/gipmed_new/Data/Breast/TCGA/SegData/SegMaps"
+
+    # train_loader, val_loader = get_data_loaders(img_dir, mask_dir)
+    # print("train_size = ", len(train_loader))
+    # print("validation_size = ", len(val_loader))
     
      # Display image and label.
     # train_imgs, train_masks= next(iter(train_loader))

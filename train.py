@@ -9,7 +9,7 @@ from utils import save_checkpoint, load_checkpoint, get_data_loaders, check_accu
 
 
 class Train:
-    def __init__(self, model, optimizer, loss_fn, img_dir, mask_dir, hyper_paramas,
+    def __init__(self, model, optimizer, loss_fn, img_dir, mask_dir, hyper_paramas, num_imgs = 30, 
                  train_transform = None, val_transform = None,  load_model = False):
 
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
@@ -22,8 +22,8 @@ class Train:
         self.hyper_params = hyper_paramas
         # img_dirs, mask_dirs = gettingDataFolders()
         self.train_loader, self.val_loader = get_data_loaders(img_dir, mask_dir, hyper_paramas["batch_size"],
-                                                         train_transform, val_transform,
-                                                         hyper_paramas["num_workers"], hyper_paramas["pin_memory"])
+                                                         hyper_paramas["num_workers"],train_transform, val_transform,
+                                                         num_imgs, hyper_paramas["pin_memory"])
 
     def train_epoch(self):
         loop = tqdm(self.train_loader)
@@ -52,9 +52,9 @@ class Train:
             check_accuracy(self.val_loader, self.model, device=self.device)
 
             # print some examples to a folder
-            save_predictions_as_imgs(
-                self.val_loader, self.model, folder="saved_images/", device=self.device
-            )
+            # save_predictions_as_imgs(
+            #     self.val_loader, self.model, folder="saved_images/", device=self.device
+            # )
             # save model every two epochs
             if (epoch % 2 == 0):
                 checkpoint = {'model': self.model.state_dict(), 'optimizer': self.optimizer.state_dict()}
