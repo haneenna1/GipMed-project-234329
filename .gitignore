@@ -1,1 +1,3 @@
-stanford_course
+stanford_course/
+dummy_data/
+__pycache__/
