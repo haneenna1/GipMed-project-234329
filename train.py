@@ -21,7 +21,7 @@ class Train:
         self.loss_fn = loss_fn
         self.hyper_params = hyper_paramas
         # img_dirs, mask_dirs = gettingDataFolders()
-        self.train_loader, self.val_loader = get_data_loaders([img_dir], [mask_dir], hyper_paramas["batch_size"],
+        self.train_loader, self.val_loader = get_data_loaders(img_dir, mask_dir, hyper_paramas["batch_size"],
                                                          train_transform, val_transform,
                                                          hyper_paramas["num_workers"], hyper_paramas["pin_memory"])
 
@@ -30,7 +30,7 @@ class Train:
 
         for batch_num, (data, targets) in enumerate(loop):  # each iteration is one epoch
             data = data.to(self.device)
-            targets = targets.to(self.device)  # check if need to unsqueeze
+            targets = targets.unsqueeze(1).to(self.device)  # check if need to unsqueeze
 
             # forward
             predictions = self.model(data)

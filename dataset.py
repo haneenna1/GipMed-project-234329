@@ -8,37 +8,36 @@ import torchvision.transforms as T
 
 import matplotlib.pyplot as plt
 
-
 class ThumbnailsDataset(Dataset):
-    def __init__(self, image_dir, mask_dir, transform=None):
+    def __init__(self, image_dir, mask_dir, indices, transform=None):
         self.image_dir = image_dir
         self.mask_dir = mask_dir
         self.transform = transform
         self.images = os.listdir(image_dir)
+        self.indices = indices
 
     def __len__(self):
-        return len(self.images)
+        return len(self.indices)
 
     def __getitem__(self, idx):
-        img_path = os.path.join(self.image_dir, self.images[idx])
-        mask_path = os.path.join(self.mask_dir, self.images[idx].replace(".jpg", ".png"))  # TODO: check again the suffix in gipDeep
-
+        img_path = os.path.join(self.image_dir, self.images[self.indices[idx]])
+        mask_path = os.path.join(self.mask_dir, self.images[self.indices[idx]].replace(".jpg",  ".png"))  # TODO: check again the suffix in gipDeep
         image = np.array(Image.open(img_path).convert("RGB"))
         mask = np.array(Image.open(mask_path).convert("L"), dtype=np.float32)
-
         mask[mask == 255.0] = 1.0
-
         if self.transform is not None:
-            print("transfroming the image before return")
             augmentations = self.transform(image=image, mask=mask)
             image = augmentations["image"]
             mask = augmentations["mask"]
-        else : 
-            print("no trnsfrom on image")
+
         return image, mask
 
 
+
+    
+
 def test():
+    
     data = ThumbnailsDataset("otsuExamples/data", "otsuExamples/segData")
     img, mask = data[0]
     print(f'image shape is {img.shape} mask shape is {mask.shape}')

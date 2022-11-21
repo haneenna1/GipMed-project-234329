@@ -4,9 +4,10 @@ import numpy as np
 import torch
 import torchvision
 from torch.utils.checkpoint import checkpoint
-from torch.utils.data import DataLoader, ConcatDataset, random_split
+from torch.utils.data import DataLoader, Subset
 from dataset import ThumbnailsDataset
 import matplotlib.pyplot as plt
+import sklearn.model_selection
 
 def save_checkpoint(state, filename="my_checkpoint.pth.tar"):
     print("=> Saving checkpoint")
@@ -112,8 +113,8 @@ def save_predictions_as_imgs(loader, model, folder="saved_images/", device="cuda
 #                                           "SegData", "SegMaps"))
 #         return image_dirs, mask_dirs
 
-
-def get_data_loaders(img_dirs, mask_dirs, batch_size = 3, train_transforms = None, val_transforms = None, num_workers = 2,
+    
+def get_data_loaders(img_dir, mask_dir, batch_size = 3, train_transforms = None, val_transforms = None, num_workers = 2,
                 pin_memory = False):
     """
     returns train and validation data loaders
@@ -129,45 +130,55 @@ def get_data_loaders(img_dirs, mask_dirs, batch_size = 3, train_transforms = Non
     VALIDATION_RATIO = 0.2
     MANUAL_SEED = 42
 
-    train_set_list = []
-    validation_set_list = []
+    # train_set_list = []
+    # validation_set_list = []
+    # for img_dir, mask_dir in zip(img_dirs,mask_dirs):
+    dir_indices = range(len(os.listdir(img_dir)))
+    train_indices, val_indices = sklearn.model_selection.train_test_split(dir_indices, test_size = VALIDATION_RATIO, random_state = MANUAL_SEED )
+    train_set = ThumbnailsDataset(img_dir, mask_dir, train_indices, transform= train_transforms)
+    validation_set =  ThumbnailsDataset(img_dir, mask_dir, val_indices, transform=val_transforms)
+    print(f'length of train  :{len(train_set)} lengt of validation: {len(validation_set)}')
+        # train_set_list.append(train_set)
+        # validation_set_list.append(validation_set)
 
-    for img_dir, mask_dir in zip(img_dirs,mask_dirs):
-        dataset = ThumbnailsDataset(img_dir, mask_dir)
-        print(len(dataset))
-        train_set, validation_set = random_split(dataset, [1-VALIDATION_RATIO, VALIDATION_RATIO], generator=torch.Generator().manual_seed(MANUAL_SEED))
-        train_set.transform = train_transforms
-        validation_set.transform = val_transforms
+    # concatened_train_set = ConcatDataset(train_set_list)
+    # if (concatened_train_set.transform) :
+    #     print('train transform not none after edit')
+    # else :
+    #     print('no train transform')
+    # concatenedValidationDataset = ConcatDataset(validation_set_list)
 
-        train_set_list.append(train_set)
-        validation_set_list.append(validation_set)
-
-    concatened_train_set = ConcatDataset(train_set_list)
-    concatenedValidationDataset = ConcatDataset(validation_set_list)
-
-    trainLoader = DataLoader(dataset=concatened_train_set, batch_size=batch_size, shuffle=True, num_workers=num_workers,
-                             pin_memory=pin_memory)
-    validationLoader = DataLoader(dataset=concatenedValidationDataset, batch_size=batch_size, shuffle=True,
-                                  num_workers=num_workers,
-                                  pin_memory=pin_memory)
+    # trainLoader = DataLoader(dataset=concatened_train_set, batch_size=batch_size, shuffle=True, num_workers=num_workers,
+    #                          pin_memory=pin_memory)
+    # validationLoader = DataLoader(dataset=concatenedValidationDataset, batch_size=batch_size, shuffle=True,
+    #                               num_workers=num_workers,
+    #                               pin_memory=pin_memory)
+    
+    trainLoader = DataLoader(dataset=train_set, batch_size=batch_size, shuffle=True, num_workers=num_workers,
+                            pin_memory=pin_memory)
+    validationLoader = DataLoader(dataset=validation_set, batch_size=batch_size, shuffle=True, num_workers=num_workers,
+                            pin_memory=pin_memory)
+    
 
     return trainLoader, validationLoader
 
 
 def test():
-    train_loader, val_loader = get_data_loaders(['/mnt/gipmed_new/Data/Breast/TCGA/thumbs/'], ['/mnt/gipmed_new/Data/Breast/TCGA/SegData/Thumbs/'],)
+    img_dir = "dummy_data/carvana_train_images"
+    mask_dir = "dummy_data/carvana_train_masks"
+    train_loader, val_loader = get_data_loaders(img_dir, mask_dir)
     print("train_size = ", len(train_loader))
     print("validation_size = ", len(val_loader))
     
      # Display image and label.
-    train_imgs, train_masks= next(iter(train_loader))
-    print(f"Feature batch shape: {train_imgs.size()}")
-    print(f"Labels batch shape: {train_masks.size()}")
-    img = train_imgs[0].squeeze()
-    label = train_masks[0]
-    plt.imshow(img)
-    plt.show()
-    print(f"Label: {label}")
+    # train_imgs, train_masks= next(iter(train_loader))
+    # print(f"Feature batch shape: {train_imgs.size()}")
+    # print(f"Labels batch shape: {train_masks.size()}")
+    # img = train_imgs[0].squeeze()
+    # label = train_masks[0]
+    # plt.imshow(img)
+    # plt.show()
+    # print(f"Label: {label}")
     
 if __name__ == '__main__':
-    test()
+    test() 
