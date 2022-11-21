@@ -21,7 +21,7 @@ class ThumbnailsDataset(Dataset):
 
     def __getitem__(self, idx):
         img_path = os.path.join(self.image_dir, self.images[self.indices[idx]])
-        mask_path = os.path.join(self.mask_dir, self.images[self.indices[idx]].replace(".jpg",  ".png"))  # TODO: check again the suffix in gipDeep
+        mask_path = os.path.join(self.mask_dir, self.images[self.indices[idx]].replace("_thumb.jpg",  "_SegMap.png"))  # TODO: check again the suffix in gipDeep
         image = np.array(Image.open(img_path).convert("RGB"))
         mask = np.array(Image.open(mask_path).convert("L"), dtype=np.float32)
         mask[mask == 255.0] = 1.0
