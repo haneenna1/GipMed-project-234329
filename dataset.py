@@ -21,17 +21,20 @@ class ThumbnailsDataset(Dataset):
 
     def __getitem__(self, idx):
         img_path = os.path.join(self.image_dir, self.images[idx])
-        mask_path = os.path.join(self.mask_dir, self.images[idx].replace(".jpg", "_mask.png"))  # TODO: check again the suffix in gipDeep
+        mask_path = os.path.join(self.mask_dir, self.images[idx].replace(".jpg", ".png"))  # TODO: check again the suffix in gipDeep
 
-        image = read_image(img_path)
-        mask = read_image(mask_path, mode=ImageReadMode.GRAY)
+        image = np.array(Image.open(img_path).convert("RGB"))
+        mask = np.array(Image.open(mask_path).convert("L"), dtype=np.float32)
+
         mask[mask == 255.0] = 1.0
 
         if self.transform is not None:
+            print("transfroming the image before return")
             augmentations = self.transform(image=image, mask=mask)
             image = augmentations["image"]
             mask = augmentations["mask"]
-
+        else : 
+            print("no trnsfrom on image")
         return image, mask
 
 
