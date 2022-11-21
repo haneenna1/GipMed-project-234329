@@ -2,10 +2,10 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
-from utils import gettingDataFolders
+# from utils import gettingDataFolders
 
 from dataset import ThumbnailsDataset
-from utils import save_checkpoint, load_checkpoint, get_loaders, check_accuracy, save_predictions_as_imgs
+from utils import save_checkpoint, load_checkpoint, get_data_loaders, check_accuracy, save_predictions_as_imgs
 
 
 class Train:
@@ -21,7 +21,7 @@ class Train:
         self.loss_fn = loss_fn
         self.hyper_params = hyper_paramas
         # img_dirs, mask_dirs = gettingDataFolders()
-        self.train_loader, self.val_loader = get_loaders(img_dir, mask_dir, hyper_paramas["batch_size"],
+        self.train_loader, self.val_loader = get_data_loaders([img_dir], [mask_dir], hyper_paramas["batch_size"],
                                                          train_transform, val_transform,
                                                          hyper_paramas["num_workers"], hyper_paramas["pin_memory"])
 
@@ -45,7 +45,7 @@ class Train:
             loop.set_postfix(batch_num = batch_num ,loss=loss.item())
 
     def __call__(self):
-        for epoch in range(self.hyper_params.num_epochs):
+        for epoch in range(self.hyper_params['num_epochs']):
             self.train_epoch()
 
             # after each epoch, check accuracy on validation set
