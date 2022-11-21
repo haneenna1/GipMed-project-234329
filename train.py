@@ -28,7 +28,7 @@ class Train:
     def train_epoch(self):
         loop = tqdm(self.train_loader)
 
-        for batch_num, (data, targets) in enumerate(loop):  # each iteration is one epoch
+        for data, targets in loop:  # each iteration is one epoch
             data = data.to(self.device)
             targets = targets.unsqueeze(1).to(self.device)  # check if need to unsqueeze
 
@@ -42,19 +42,20 @@ class Train:
             self.optimizer.step()
 
             # update tqdm
-            loop.set_postfix(batch_num = batch_num ,loss=loss.item())
+            loop.set_postfix(loss=loss.item())
 
     def __call__(self):
         for epoch in range(self.hyper_params['num_epochs']):
+            print(f'------------ epoch #{epoch} ------------ ')
             self.train_epoch()
 
             # after each epoch, check accuracy on validation set
             check_accuracy(self.val_loader, self.model, device=self.device)
 
             # print some examples to a folder
-            # save_predictions_as_imgs(
-            #     self.val_loader, self.model, folder="saved_images/", device=self.device
-            # )
+            save_predictions_as_imgs(
+                self.val_loader, self.model, folder="saved_images/", device=self.device
+            )
             # save model every two epochs
             if (epoch % 2 == 0):
                 checkpoint = {'model': self.model.state_dict(), 'optimizer': self.optimizer.state_dict()}

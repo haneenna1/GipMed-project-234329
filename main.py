@@ -11,8 +11,8 @@ from albumentations.pytorch import ToTensorV2
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 LEARNING_RATE = 1e-4
-NUM_EPOCHS = 3
-BATCH_SIZE = 16
+NUM_EPOCHS = 10
+BATCH_SIZE = 5
 PIN_MEMPRY = True
 NUM_WORKERS = 2 # <= cpus
 
@@ -56,7 +56,7 @@ def main():
         ],
     )
     
-    train= Train(model, optimizer, loss_fn, img_dir, mask_dir, hyper_paramas, train_transform= train_transform, val_transform= val_transform, load_model=False)
+    train= Train(model, optimizer, loss_fn, img_dir, mask_dir, hyper_paramas, num_imgs=80, train_transform= train_transform, val_transform= val_transform, load_model=False)
     train()
   
 
