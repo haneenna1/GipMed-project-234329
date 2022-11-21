@@ -1,3 +1,4 @@
+import random
 import torch
 from torch import nn
 import torch.optim as optim
@@ -7,19 +8,18 @@ from train import Train
 import torchvision.transforms as T
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
-
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
-
 LEARNING_RATE = 1e-4
 NUM_EPOCHS = 3
 BATCH_SIZE = 16
 PIN_MEMPRY = True
 NUM_WORKERS = 2 # <= cpus
-
-IMAGE_HEIGHT = 160  # 1280 originally for carvna
-IMAGE_WIDTH = 240  # 1918 originally for carvana
-
+IMAGE_HEIGHT = 180  # 1280 originally for carvna
+IMAGE_WIDTH = 180  # 1918 originally for carvana
+MANUAL_SEED = 42
 def main():
+    random.seed(MANUAL_SEED) # applying the mask transforms and the image transforms would
+                             # lead to different crops without making a seed???
     model = Unet(in_channels=3, out_channels=1).to(DEVICE)
     optimizer = optim.Adam(model.parameters(), lr = LEARNING_RATE)
     loss_fn = nn.BCEWithLogitsLoss()
@@ -31,7 +31,7 @@ def main():
     
     train_transform = A.Compose(
         [
-            A.Resize(height=IMAGE_HEIGHT, width=IMAGE_WIDTH),
+            A.RandomCrop(height=IMAGE_HEIGHT,width=IMAGE_WIDTH),
             A.Rotate(limit=35, p=1.0),
             A.HorizontalFlip(p=0.5),
             A.VerticalFlip(p=0.1),
@@ -43,10 +43,9 @@ def main():
             ToTensorV2(),
         ],
     )
-
     val_transform = A.Compose(
         [
-            A.Resize(height=IMAGE_HEIGHT, width=IMAGE_WIDTH),
+            A.RandomCrop(height=IMAGE_HEIGHT, width=IMAGE_WIDTH),
             A.Normalize(
                 mean=[0.0, 0.0, 0.0],
                 std=[1.0, 1.0, 1.0],
@@ -59,6 +58,5 @@ def main():
     train= Train(model, optimizer, loss_fn, img_dir, mask_dir, hyper_paramas, train_transform= train_transform, val_transform= val_transform, load_model=False)
     train()
   
-
 if __name__ == "__main__": 
     main()
