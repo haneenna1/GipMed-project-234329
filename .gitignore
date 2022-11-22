@@ -4,3 +4,6 @@ __pycache__/
 .vscode/
 my_checkpoint.pth.tar
 saved_images/
+backup_saved_predictions
+sbatch_err
+sbatch_out
