@@ -13,13 +13,11 @@ LEARNING_RATE = 1e-4
 NUM_EPOCHS = 20
 BATCH_SIZE = 10
 PIN_MEMPRY = True
-NUM_WORKERS = 10 # <= cpus
+NUM_WORKERS = 2 # <= cpus
 IMAGE_HEIGHT = 512
 IMAGE_WIDTH = 512  
 MANUAL_SEED = 42
 def main():
-    random.seed(MANUAL_SEED) # applying the mask transforms and the image transforms would
-                             # lead to different crops without making a seed???
     model = Unet(in_channels=3, out_channels=1).to(DEVICE)
     optimizer = optim.Adam(model.parameters(), lr = LEARNING_RATE)
     loss_fn = nn.BCEWithLogitsLoss()
@@ -48,6 +46,7 @@ def main():
     val_transform = A.Compose(
         [
             A.RandomResizedCrop(height=IMAGE_HEIGHT, width=IMAGE_WIDTH, scale = (0.5, 0.7)),
+            # center crop is better 
             A.Normalize(
                 mean=[0.0, 0.0, 0.0],
                 std=[1.0, 1.0, 1.0],
