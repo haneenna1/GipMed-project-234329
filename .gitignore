@@ -2,3 +2,5 @@ stanford_course/
 dummy_data/
 __pycache__/
 .vscode/
+my_checkpoint.pth.tar
+saved_images/
