@@ -7,14 +7,20 @@ from torchvision.io import read_image, ImageReadMode
 import torchvision.transforms as T
 
 import matplotlib.pyplot as plt
+import albumentations as A
+
+
+IMAGE_HEIGHT=512
+IMAGE_WIDTH=512
 
 class ThumbnailsDataset(Dataset):
-    def __init__(self, image_dir, mask_dir, indices, transform=None):
+    def __init__(self, image_dir, mask_dir, indices, eval_mode,transform=None):
         self.image_dir = image_dir
         self.mask_dir = mask_dir
         self.transform = transform
         self.images = os.listdir(image_dir)
         self.indices = indices
+        self.eval_mode = eval_mode
 
     def __len__(self):
         return len(self.indices)
@@ -25,14 +31,18 @@ class ThumbnailsDataset(Dataset):
         image = np.array(Image.open(img_path).convert("RGB"))
         mask = np.array(Image.open(mask_path).convert("L"), dtype=np.float32)
         mask[mask == 255.0] = 1.0
+        height, width, _ = image.shape
         if self.transform is not None:
             augmentations = self.transform(image=image, mask=mask)
+            if self.eval_mode:
+                # Resizing just in case we're in validation, since using center crop
+                resizing = A.Resize(max(IMAGE_HEIGHT,height),max(IMAGE_WIDTH,width))
+                image = resizing(image)
+                mask = resizing(image)
             image = augmentations["image"]
             mask = augmentations["mask"]
 
         return image, mask
-
-
 
     
 
