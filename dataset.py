@@ -36,9 +36,10 @@ class ThumbnailsDataset(Dataset):
             augmentations = self.transform(image=image, mask=mask)
             if self.eval_mode:
                 # Resizing just in case we're in validation, since using center crop
-                resizing = A.Resize(max(IMAGE_HEIGHT,height),max(IMAGE_WIDTH,width))
-                image = resizing(image)
-                mask = resizing(image)
+                resizing =A.Compose([A.Resize(max(IMAGE_HEIGHT,height),max(IMAGE_WIDTH,width))])
+                resizing_aug = resizing(image=image,mask=mask)
+                image = resizing_aug["image"]
+                mask = resizing_aug["mask"]
             image = augmentations["image"]
             mask = augmentations["mask"]
 

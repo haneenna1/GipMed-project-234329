@@ -53,8 +53,7 @@ def main():
             ToTensorV2(),
         ],
     )
-    
-    train= Train(model, optimizer, loss_fn, img_dir, mask_dir, hyper_paramas, num_imgs=2000, train_transform= train_transform, val_transform= val_transform, load_model=False)
+    train= Train(model, optimizer, loss_fn, img_dir, mask_dir, hyper_paramas, num_imgs=50, train_transform= train_transform, val_transform= val_transform, load_model=False)
     train()
   
 if __name__ == "__main__": 
