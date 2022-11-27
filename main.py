@@ -11,7 +11,7 @@ from albumentations.pytorch import ToTensorV2
 from dataset import IMAGE_HEIGHT,IMAGE_WIDTH
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 LEARNING_RATE = 1e-4
-NUM_EPOCHS = 100
+NUM_EPOCHS = 1
 BATCH_SIZE = 10
 PIN_MEMPRY = True
 NUM_WORKERS = 2 # <= cpus
@@ -53,7 +53,7 @@ def main():
             ToTensorV2(),
         ],
     )
-    train= Train(model, optimizer, loss_fn, img_dir, mask_dir, hyper_paramas, num_imgs=50, train_transform= train_transform, val_transform= val_transform, load_model=False)
+    train= Train(model, optimizer, loss_fn, img_dir, mask_dir, hyper_paramas, num_imgs=5, train_transform= train_transform, val_transform= val_transform, load_model=False)
     train()
   
 if __name__ == "__main__": 
