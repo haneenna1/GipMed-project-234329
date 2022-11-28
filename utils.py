@@ -60,6 +60,12 @@ def save_predictions_as_imgs(loader, model, folder="saved_images/", device="cuda
     model.train()
 
 
+
+def save_data_set(loader, folder="train_set"):
+    for idx, (x, y) in enumerate(loader):
+        torchvision.utils.save_image(x, f"{folder}/img_sample_{idx}.jpg")
+        torchvision.utils.save_image(y.unsqueeze(1), f"{folder}/img_sample_mask{idx}.png")
+
 # def gettingDataFolders() -> tuple[list, list]:
 #     image_dirs = []
 #     mask_dirs = []
@@ -163,7 +169,8 @@ def get_data_loaders(img_dir, mask_dir, batch_size = 3, num_workers = 2, train_t
     validationLoader = DataLoader(dataset=validation_set, batch_size=batch_size, shuffle=True, num_workers=num_workers,
                             pin_memory=pin_memory)
     
-
+    save_data_set(trainLoader, 'train_set')
+    save_data_set(validationLoader, 'validation_set')
     return trainLoader, validationLoader
 
 # For extracting the images sizes
