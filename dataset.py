@@ -7,15 +7,23 @@ from torchvision.io import read_image, ImageReadMode
 import torchvision.transforms as T
 
 import matplotlib.pyplot as plt
+import albumentations as A
+from torchvision.utils import save_image
+from datetime import datetime
+from albumentations.pytorch import ToTensorV2
+
+IMAGE_HEIGHT=512
+IMAGE_WIDTH=512
 
 class ThumbnailsDataset(Dataset):
-    def __init__(self, image_dir, mask_dir, indices, transform=None):
+    def __init__(self, image_dir, mask_dir, indices, eval_mode,transform=None):
         self.image_dir = image_dir
         self.mask_dir = mask_dir
         self.transform = transform
         self.images = [path for path in os.listdir(image_dir) if path.endswith(".jpg")]
         # print(self.images)
         self.indices = indices
+        self.eval_mode = eval_mode
 
     def __len__(self):
         return len(self.indices)
@@ -24,16 +32,28 @@ class ThumbnailsDataset(Dataset):
         img_path = os.path.join(self.image_dir, self.images[self.indices[idx]])
         mask_path = os.path.join(self.mask_dir, self.images[self.indices[idx]].replace("_thumb.jpg",  "_SegMap.png"))  # TODO: check again the suffix in gipDeep
         image = np.array(Image.open(img_path).convert("RGB"))
+        # saving the orig data and the augmented one 
+        orig_image = Image.fromarray(image)
+        if not(os.path.isdir('./visualizing_augmentation')):
+            os.mkdir('./visualizing_augmentation')
+        time = datetime.now().time()
+        orig_image.save( f"visualizing_augmentation/orig_img_{time}.png")
         mask = np.array(Image.open(mask_path).convert("L"), dtype=np.float32)
         mask[mask == 255.0] = 1.0
+        height, width, _ = image.shape
         if self.transform is not None:
             augmentations = self.transform(image=image, mask=mask)
+            if self.eval_mode:
+                # Resizing just in case we're in validation, since using center crop
+                resizing =A.Compose([A.Resize(max(IMAGE_HEIGHT,height),max(IMAGE_WIDTH,width))])
+                resizing_aug = resizing(image=image,mask=mask)
+                image = resizing_aug["image"]
+                mask = resizing_aug["mask"]
             image = augmentations["image"]
+            save_image(image, f"visualizing_augmentation/aug_img_{time}.png")
             mask = augmentations["mask"]
 
         return image, mask
-
-
 
     
 

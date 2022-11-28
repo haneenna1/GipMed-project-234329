@@ -8,14 +8,22 @@ from train import Train
 import torchvision.transforms as T
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
+from dataset import IMAGE_HEIGHT,IMAGE_WIDTH
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 LEARNING_RATE = 1e-4
+<<<<<<< HEAD
 NUM_EPOCHS = 10
 BATCH_SIZE = 8
 PIN_MEMPRY = True
 NUM_WORKERS = 10 # <= cpus
 IMAGE_HEIGHT = 512
 IMAGE_WIDTH = 512  
+=======
+NUM_EPOCHS = 1
+BATCH_SIZE = 10
+PIN_MEMPRY = True
+NUM_WORKERS = 2 # <= cpus
+>>>>>>> 11326f51d6d5693a61b24b2b1a4aae76c8b24752
 MANUAL_SEED = 42
 def main():
     model = Unet(in_channels=3, out_channels=1).to(DEVICE)
@@ -47,8 +55,12 @@ def main():
     )
     val_transform = A.Compose(
         [
+<<<<<<< HEAD
             A.PadIfNeeded(IMAGE_HEIGHT, IMAGE_WIDTH),
             A.CenterCrop(IMAGE_HEIGHT, IMAGE_WIDTH),
+=======
+            A.CenterCrop(height=IMAGE_HEIGHT, width=IMAGE_WIDTH),
+>>>>>>> 11326f51d6d5693a61b24b2b1a4aae76c8b24752
             A.Normalize(
                 mean=[0.0, 0.0, 0.0],
                 std=[1.0, 1.0, 1.0],
@@ -57,8 +69,7 @@ def main():
             ToTensorV2(),
         ],
     )
-    
-    train= Train(model, optimizer, loss_fn, img_dir, mask_dir, hyper_paramas, num_imgs=500, train_transform= train_transform, val_transform= val_transform, load_model=False)
+    train= Train(model, optimizer, loss_fn, img_dir, mask_dir, hyper_paramas, num_imgs=5, train_transform= train_transform, val_transform= val_transform, load_model=False)
     train()
   
 if __name__ == "__main__": 
