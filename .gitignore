@@ -7,3 +7,5 @@ saved_images/
 backup_saved_predictions
 sbatch_err
 sbatch_out
+train_set/
+validation_set/
