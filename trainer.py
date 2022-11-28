@@ -1,14 +1,16 @@
+from execnet import MultiChannel
 import torch
+from torch.utils.tensorboard import SummaryWriter
+
 import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
+import numpy as np
 # from utils import gettingDataFolders
-
-from dataset import ThumbnailsDataset
 from utils import save_checkpoint, load_checkpoint, get_data_loaders, check_accuracy, save_predictions_as_imgs
 
 
-class Train:
+class Trainer:
     def __init__(self, model, optimizer, loss_fn, img_dir, mask_dir, hyper_paramas, num_imgs = 30, 
                  train_transform = None, val_transform = None,  load_model = False):
 
@@ -28,6 +30,7 @@ class Train:
     def train_epoch(self):
         loop = tqdm(self.train_loader)
 
+        losses = []
         for data, targets in loop:  # each iteration is one epoch
             data = data.to(self.device)
             targets = targets.unsqueeze(1).to(self.device)  # check if need to unsqueeze
@@ -35,6 +38,7 @@ class Train:
             # forward
             predictions = self.model(data)
             loss = self.loss_fn(predictions, targets)
+
 
             # backward
             self.optimizer.zero_grad()
@@ -44,19 +48,31 @@ class Train:
             # update tqdm
             loop.set_postfix(loss=loss.item())
 
+            losses.append(loss.item())
+        return np.mean(losses)
+
     def __call__(self):
+        writer = SummaryWriter()
         for epoch in range(self.hyper_params['num_epochs']):
             print(f'------------ epoch #{epoch} ------------ ')
-            self.train_epoch()
+            epoch_loss = self.train_epoch()
 
             # after each epoch, check accuracy on validation set
             check_accuracy(self.val_loader, self.model, device=self.device)
+            
+            writer.add_scalar('Loss/train', epoch_loss, epoch)
 
             # print some examples to a folder
             save_predictions_as_imgs(
-                self.val_loader, self.model, folder="saved_images/", device=self.device
+                self.val_loader, self.model, device=self.device
             )
+
             # save model every two epochs
             if (epoch % 2 == 0):
                 checkpoint = {'model': self.model.state_dict(), 'optimizer': self.optimizer.state_dict()}
                 save_checkpoint(checkpoint)
+
+        writer.flush()
+
+
+
