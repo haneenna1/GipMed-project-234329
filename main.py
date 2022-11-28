@@ -8,10 +8,10 @@ import torchvision.transforms as T
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 from data import IMAGE_HEIGHT,IMAGE_WIDTH
+from trainer import BATCH_SIZE
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 LEARNING_RATE = 1e-4
-NUM_EPOCHS = 1
-BATCH_SIZE = 8
+NUM_EPOCHS = 10
 PIN_MEMPRY = True
 NUM_WORKERS = 2 # <= cpus
 IMAGE_HEIGHT = 512
