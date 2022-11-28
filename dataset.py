@@ -13,7 +13,8 @@ class ThumbnailsDataset(Dataset):
         self.image_dir = image_dir
         self.mask_dir = mask_dir
         self.transform = transform
-        self.images = os.listdir(image_dir)
+        self.images = [path for path in os.listdir(image_dir) if path.endswith(".jpg")]
+        # print(self.images)
         self.indices = indices
 
     def __len__(self):
