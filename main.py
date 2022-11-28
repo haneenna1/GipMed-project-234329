@@ -10,10 +10,10 @@ import albumentations as A
 from albumentations.pytorch import ToTensorV2
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 LEARNING_RATE = 1e-4
-NUM_EPOCHS = 20
-BATCH_SIZE = 10
+NUM_EPOCHS = 10
+BATCH_SIZE = 8
 PIN_MEMPRY = True
-NUM_WORKERS = 2 # <= cpus
+NUM_WORKERS = 10 # <= cpus
 IMAGE_HEIGHT = 512
 IMAGE_WIDTH = 512  
 MANUAL_SEED = 42
@@ -30,7 +30,9 @@ def main():
     
     train_transform = A.Compose(
         [
-            A.RandomResizedCrop(height=IMAGE_HEIGHT,width=IMAGE_WIDTH, scale = (0.5, 0.7),),
+            A.PadIfNeeded(IMAGE_HEIGHT, IMAGE_WIDTH),
+            A.CropNonEmptyMaskIfExists(height=IMAGE_HEIGHT,width=IMAGE_WIDTH, ignore_values = [255.0]),
+            # A.RandomCrop(height=IMAGE_HEIGHT,width=IMAGE_WIDTH),
             # colorjitter
             A.Rotate(limit=35, p=1.0),
             A.HorizontalFlip(p=0.5),
@@ -45,8 +47,8 @@ def main():
     )
     val_transform = A.Compose(
         [
-            A.RandomResizedCrop(height=IMAGE_HEIGHT, width=IMAGE_WIDTH, scale = (0.5, 0.7)),
-            # center crop is better 
+            A.PadIfNeeded(IMAGE_HEIGHT, IMAGE_WIDTH),
+            A.CenterCrop(IMAGE_HEIGHT, IMAGE_WIDTH),
             A.Normalize(
                 mean=[0.0, 0.0, 0.0],
                 std=[1.0, 1.0, 1.0],
@@ -61,3 +63,6 @@ def main():
   
 if __name__ == "__main__": 
     main()
+
+
+
