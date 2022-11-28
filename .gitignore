@@ -3,9 +3,12 @@ dummy_data/
 __pycache__/
 .vscode/
 my_checkpoint.pth.tar
-saved_images/
+saved_predictions/
+layered_preds/
 backup_saved_predictions
 sbatch_err
 sbatch_out
 train_set/
 validation_set/
+augmented_imgs/
+runs/
