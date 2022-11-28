@@ -7,7 +7,7 @@ from trainer import Trainer
 import torchvision.transforms as T
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
-from dataset import IMAGE_HEIGHT,IMAGE_WIDTH
+from data import IMAGE_HEIGHT,IMAGE_WIDTH
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 LEARNING_RATE = 1e-4
 NUM_EPOCHS = 1
