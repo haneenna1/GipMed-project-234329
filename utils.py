@@ -19,6 +19,7 @@ def REAL_PATH(path):
     print(os.path.join(os.path.abspath(os.getcwd()), path))
     return os.path.join(os.path.abspath(os.getcwd()), path)
 
+
 def save_checkpoint(state, filename="my_checkpoint.pth.tar"):
     print("=> Saving checkpoint")
     torch.save(state, filename)
@@ -28,40 +29,6 @@ def load_checkpoint(model, filename="my_checkpoint.pth.tar"):
     print("=> Loading checkpoint")
     checkpoint = torch.load(filename)
     model.load_state_dict(checkpoint["model"])
-
-
-def check_accuracy(loader, model ,epoch ,writer ,device="cuda"):
-    num_correct = 0
-    num_pixels = 0
-    dice_score = 0
-    model.eval()  # set the model to be in eval mode not train mode, for parts that behave differently in train/val
-
-    with torch.no_grad():
-        for cur_batch, (x, y) in enumerate(loader):
-            x = x.to(device)
-            y = y.to(device).unsqueeze(1)
-            preds = torch.sigmoid(model(x))
-            preds = (preds > 0.5).float()
-            cur_correct = (preds == y).sum()
-            num_correct += cur_correct
-            cur_pixels = torch.numel(preds)
-            num_pixels += cur_pixels
-            cur_dice = (2 * (preds * y).sum()) / (
-                    (preds + y).sum() + 1e-8
-            )
-            dice_score += cur_dice
-            global_batch_counter = BATCH_SIZE*epoch + cur_batch
-            acc_per_batch = float(cur_correct/cur_pixels * 100)
-            dice_per_batch = float(cur_dice/BATCH_SIZE)
-            writer.add_scalar('ACC/validation', acc_per_batch, global_batch_counter)
-            writer.add_scalar('DICE_SCORE/validation', dice_per_batch, global_batch_counter)
-
-    print(
-        f"Got {num_correct}/{num_pixels} with acc {num_correct / num_pixels * 100:.2f}"
-    )
-    print(f"Dice score: {dice_score / len(loader)}")
-    model.train()  # set the model back to the training mode
-    
 
 def save_layered_predictions(img_path, maks_path, index,  mode = 'ground',folder = 'layered_preds'):
     img = cv2.imread(img_path)
@@ -103,8 +70,8 @@ def save_data_set(loader, folder_name="train_set"):
         torchvision.utils.save_image(y.unsqueeze(1), f"{REAL_PATH(folder_name)}/img_sample_mask{idx}.png")
 
 
-def get_data_loaders(img_dir, mask_dir, batch_size = 3, num_workers = 2, train_transforms = None, val_transforms = None,
-                 num_imgs = 30,pin_memory = False):
+def get_data_loaders(img_dir, mask_dir, train_transforms = None, val_transforms = None, num_imgs = 100, batch_size = 3, num_workers = 2,
+                 pin_memory = False):
     """
     returns train and validation data loaders
     Args:
