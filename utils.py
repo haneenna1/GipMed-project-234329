@@ -15,6 +15,7 @@ from PIL.Image import Image
 def REAL_PATH(path):
     return os.path.join('/home/haneenna/GipMed-project-234329', path)
 
+
 def save_checkpoint(state, filename="my_checkpoint.pth.tar"):
     print("=> Saving checkpoint")
     torch.save(state, filename)
@@ -24,32 +25,6 @@ def load_checkpoint(model, filename="my_checkpoint.pth.tar"):
     print("=> Loading checkpoint")
     checkpoint = torch.load(filename)
     model.load_state_dict(checkpoint["model"])
-
-
-def check_accuracy(loader, model, device="cuda"):
-    num_correct = 0
-    num_pixels = 0
-    dice_score = 0
-    model.eval()  # set the model to be in eval mode not train mode, for parts that behave differently in train/val
-
-    with torch.no_grad():
-        for x, y in loader:
-            x = x.to(device)
-            y = y.to(device).unsqueeze(1)
-            preds = torch.sigmoid(model(x))
-            preds = (preds > 0.5).float()
-            num_correct += (preds == y).sum()
-            num_pixels += torch.numel(preds)
-            dice_score += (2 * (preds * y).sum()) / (
-                    (preds + y).sum() + 1e-8
-            )
-
-    print(
-        f"Got {num_correct}/{num_pixels} with acc {num_correct / num_pixels * 100:.2f}"
-    )
-    print(f"Dice score: {dice_score / len(loader)}")
-    model.train()  # set the model back to the training mode
-    
 
 def save_layered_predictions(img_path, maks_path, index,  mode = 'ground',folder = 'layered_preds'):
     img = cv2.imread(img_path)
@@ -91,8 +66,8 @@ def save_data_set(loader, folder_name="train_set"):
         torchvision.utils.save_image(y.unsqueeze(1), f"{REAL_PATH(folder_name)}/img_sample_mask{idx}.png")
 
 
-def get_data_loaders(img_dir, mask_dir, batch_size = 3, num_workers = 2, train_transforms = None, val_transforms = None,
-                 num_imgs = 30,pin_memory = False):
+def get_data_loaders(img_dir, mask_dir, train_transforms = None, val_transforms = None, num_imgs = 100, batch_size = 3, num_workers = 2,
+                 pin_memory = False):
     """
     returns train and validation data loaders
     Args:
@@ -154,3 +129,8 @@ def clear_folder(dir):
     for f in files:
         f_path = os.path.join(dir, f)
         os.remove(f_path)
+
+def test():
+    clear_folder('runs')
+if __name__ == '__main__':
+    test()
