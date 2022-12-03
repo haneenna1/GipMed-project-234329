@@ -26,7 +26,7 @@ dependencies:
   - torchvision
   - torchtext
   # - cv2
-
+  - monai
   - pip
   - pip:
     - tensorboard

@@ -11,10 +11,10 @@ import utils
 
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 LEARNING_RATE = 1e-4
-NUM_EPOCHS = 25
+NUM_EPOCHS = 75
 BATCH_SIZE = 8
 PIN_MEMPRY = True
-NUM_WORKERS = 40 # <= cpus
+NUM_WORKERS = 10 # <= cpus
 IMAGE_HEIGHT = 512
 IMAGE_WIDTH = 512  
 MANUAL_SEED = 42
@@ -47,6 +47,7 @@ def main():
             ToTensorV2(),
         ],
     )
+    # should passed when using the centerCrop without sliding window
     val_transform = A.Compose(
         [
             A.PadIfNeeded(1024, 1024),
@@ -59,9 +60,20 @@ def main():
             ToTensorV2(),
         ],
     )
+    # should Passed when using the sliding window inference
+    val_transform_for_sliding_window = A.Compose(
+        [
+            A.Normalize(
+                mean=[0.0, 0.0, 0.0],
+                std=[1.0, 1.0, 1.0],
+                max_pixel_value=255.0,
+            ),
+            ToTensorV2(),
+        ],
+    )
 
-    train_dl, val_dl = utils.get_data_loaders(img_dir, mask_dir, train_transform, val_transform,
-                                                1500, BATCH_SIZE, NUM_WORKERS, PIN_MEMPRY)
+    train_dl, val_dl = utils.get_data_loaders(img_dir, mask_dir, train_transform, val_transform_for_sliding_window,
+                                                10, BATCH_SIZE, NUM_WORKERS, PIN_MEMPRY)
 
     trainer = Trainer(model, optimizer, loss_fn, device = DEVICE)
     trainer.fit(train_dl, val_dl,  NUM_EPOCHS, early_stopping = 8)

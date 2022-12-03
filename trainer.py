@@ -9,6 +9,8 @@ import numpy as np
 # from utils import gettingDataFolders
 from utils import save_checkpoint, load_checkpoint, save_predictions_as_imgs
 from train_results_classes import BatchResult, EpochResult, FitResult
+from monai.inferers import sliding_window_inference
+from data import IMAGE_HEIGHT,IMAGE_WIDTH
 
 class Trainer:
     def __init__(self, model, optimizer, loss_fn, device = None, load_model = False):
@@ -21,6 +23,10 @@ class Trainer:
         self.device = device
         if self.device:
             model.to(self.device)
+        self.train_cur_batch = 0 
+        self.val_cur_batch = 0 
+        self.writer = SummaryWriter('runs/unet_TCGA_3000')
+        self.sliding_window_validation = True
         
 
     def train_batch(self, batch) -> BatchResult:
@@ -54,9 +60,16 @@ class Trainer:
 
             # forward
         with torch.no_grad():
-            per_pixel_score_predictions = self.model(batch_imgs)
-            batch_loss = self.loss_fn(per_pixel_score_predictions, batch_masks)
 
+            if self.sliding_window_validation:
+                roi_size = (IMAGE_HEIGHT, IMAGE_WIDTH)
+                sw_batch_size = len(batch) # TODO:check this number by print
+                per_pixel_score_predictions = sliding_window_inference(
+                        batch_imgs, roi_size, sw_batch_size, self.model,overlap=0,progress=True)
+                # TODO:check the overlap value if it is okay?
+            else:
+                per_pixel_score_predictions = self.model(batch_imgs)
+            batch_loss = self.loss_fn(per_pixel_score_predictions, batch_masks)
 
             # accuracy and dice
             pred_masks = torch.sigmoid(per_pixel_score_predictions)
@@ -84,6 +97,10 @@ class Trainer:
             num_correct += batch_res.num_correct
             num_pixels += batch_res.num_correct
             dice_score += batch_res.dice_score
+            self.writer.add_scalar('Loss/train_Btach',batch_res.loss , self.train_cur_batch)
+            self.writer.add_scalar('Accuracy/train_Batch', batch_res.num_correct/batch_res.num_pixels, self.train_cur_batch)
+            self.writer.add_scalar('Dice_Score/train_Batch',batch_res.dice_score, self.train_cur_batch)
+            self.train_cur_batch += 1
 
         accuracy = num_correct / num_pixels
         dice_score = dice_score/len(dl_train)
@@ -104,6 +121,10 @@ class Trainer:
             num_correct += batch_res.num_correct
             num_pixels += batch_res.num_correct
             dice_score += batch_res.dice_score
+            self.writer.add_scalar('Loss/validation_Btach',batch_res.loss , self.val_cur_batch)
+            self.writer.add_scalar('Accuracy/validation_Batch', batch_res.num_correct/batch_res.num_pixels, self.val_cur_batch)
+            self.writer.add_scalar('Dice_Score/validation_Batch',batch_res.dice_score, self.val_cur_batch)
+            self.val_cur_batch += 1
 
         accuracy = num_correct / num_pixels
         dice_score = dice_score/len(validation_dl)
@@ -120,7 +141,6 @@ class Trainer:
         print_every: int = 1,
         **kw,
     )  -> FitResult:
-        writer = SummaryWriter('runs/unet_TCGA_experiment')
         actual_num_epochs = 0
         epochs_without_improvement = 0
 
@@ -139,12 +159,12 @@ class Trainer:
             test_acc.append(val_epoch_result.accuracy)
             test_loss.append(torch.mean(torch.FloatTensor(val_epoch_result.losses)).item())
 
-            writer.add_scalar('Loss/train', torch.mean(torch.FloatTensor(train_epoch_result.losses)).item(), epoch)
-            writer.add_scalar('Loss/validation', torch.mean(torch.FloatTensor(val_epoch_result.losses)).item(), epoch)
-            writer.add_scalar('Accuracy/train', train_epoch_result.accuracy.item(), epoch)
-            writer.add_scalar('Accuracy/validation', val_epoch_result.accuracy.item(),  epoch)
-            writer.add_scalar('Dice_Score/train',train_epoch_result.dice_score.item(), epoch)
-            writer.add_scalar('Dice_Score/validation', val_epoch_result.dice_score.item(), epoch)
+            self.writer.add_scalar('Loss/train_Epoch', torch.mean(torch.FloatTensor(train_epoch_result.losses)).item(), epoch)
+            self.writer.add_scalar('Loss/validation_Epoch', torch.mean(torch.FloatTensor(val_epoch_result.losses)).item(), epoch)
+            self.writer.add_scalar('Accuracy/train_Epoch', train_epoch_result.accuracy.item(), epoch)
+            self.writer.add_scalar('Accuracy/validation_Epoch', val_epoch_result.accuracy.item(),  epoch)
+            self.writer.add_scalar('Dice_Score/train_Epoch',train_epoch_result.dice_score.item(), epoch)
+            self.writer.add_scalar('Dice_Score/validation_Epoch', val_epoch_result.dice_score.item(), epoch)
 
 
             # early stopping 
@@ -156,14 +176,15 @@ class Trainer:
                 save_checkpoint(checkpoint)
                 # print some examples to a folder
                 save_predictions_as_imgs(
-                    dl_validation, self.model, device=self.device
+                    dl_validation, self.model, device=self.device, sliding_window=self.sliding_window_validation
                 )
             else:
                 epochs_without_improvement+= 1
                 if (early_stopping is not None) and epochs_without_improvement > early_stopping:
                     break
 
-            writer.flush()
+            self.writer.flush()
+        self.writer.close()
         return FitResult(actual_num_epochs, train_loss, train_acc, test_loss, test_acc)
 
 

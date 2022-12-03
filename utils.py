@@ -11,13 +11,14 @@ import matplotlib.pyplot as plt
 import sklearn.model_selection
 from PIL.Image import Image
 import pathlib
-
+from data import IMAGE_HEIGHT,IMAGE_WIDTH
+from monai.inferers import sliding_window_inference
 BATCH_SIZE = 8
 
 
 def REAL_PATH(path):
-    print(os.path.join(os.path.abspath(os.getcwd()), path))
-    return os.path.join(os.path.abspath(os.getcwd()), path)
+    #changing to hardcoded path
+    return os.path.join("/home/amir.bishara/workspace/project/final_repo/GipMed-project-234329", path)
 
 
 def save_checkpoint(state, filename="my_checkpoint.pth.tar"):
@@ -37,14 +38,20 @@ def save_layered_predictions(img_path, maks_path, index,  mode = 'ground',folder
     dst_path = f'{REAL_PATH(folder)}/img_{index}_{mode}_layered.jpg'
     cv2.imwrite(dst_path, layered_img)
 
-def save_predictions_as_imgs(loader, model, pred_folder="saved_predictions", layers_folder = 'layered_preds' ,device="cuda"):
+def save_predictions_as_imgs(loader, model, pred_folder="saved_predictions", layers_folder = 'layered_preds' ,device="cuda",sliding_window = True):
     clear_folder(pred_folder)
     clear_folder(layers_folder)
     model.eval()
     for idx, (x, y) in enumerate(loader):
         x = x.to(device=device)
         with torch.no_grad():
-            preds = torch.sigmoid(model(x))
+            if sliding_window == True:
+                roi_size = (IMAGE_HEIGHT, IMAGE_WIDTH)
+                sw_batch_size = len(x) # TODO:check this number by print
+                preds = sliding_window_inference(
+                        x, roi_size, sw_batch_size, model,overlap=0,progress=True)
+            else:
+                preds = torch.sigmoid(model(x))
             preds = (preds > 0.5).float()
         
         img_path = f"{REAL_PATH(pred_folder)}/img_{idx}.jpg"
@@ -89,7 +96,7 @@ def get_data_loaders(img_dir, mask_dir, train_transforms = None, val_transforms 
     # train_set_list = []
     # validation_set_list = []
     # for img_dir, mask_dir in zip(img_dirs,mask_dirs):
-    full_dir_indices = range(len(os.listdir(img_dir)))
+    full_dir_indices = range(len([path for path in os.listdir(img_dir) if path.endswith(".jpg")]))
     # we want a subset of the data
     chosen_dir_indices = random.choices(full_dir_indices, k = num_imgs)
 
