@@ -51,8 +51,8 @@ def save_predictions_as_imgs(loader, model, pred_folder="saved_predictions", lay
                 preds = sliding_window_inference(
                         x, roi_size, sw_batch_size, model,overlap=0,progress=True)
             else:
-                preds = torch.sigmoid(model(x))
-            preds = (preds > 0.5).float()
+                preds = torch.sigmoid(model(x)) # TODO: check it??
+            preds = (preds > 0.5).float() # TODO: check it??
         
         img_path = f"{REAL_PATH(pred_folder)}/img_{idx}.jpg"
         predicted_mask_path = f"{REAL_PATH(pred_folder)}/img_{idx}_predicted_mask.jpg"
