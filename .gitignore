@@ -12,3 +12,6 @@ train_set/
 validation_set/
 augmented_imgs/
 runs/
+training-ref.py
+.gitignore
+Results/

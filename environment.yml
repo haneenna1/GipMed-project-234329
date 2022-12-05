@@ -3,6 +3,7 @@ channels:
   - pytorch
   - conda-forge
   - defaults
+  - nvidia
 dependencies:
   # common
   # - mkl < 2022  #for windows, better try to remove this line 
@@ -20,11 +21,12 @@ dependencies:
   - tqdm
   # pytorch
   - pytorch
+  - pytorch-cuda=11.6
   - cudatoolkit
   - torchvision
   - torchtext
-  - cv2
-
+  # - cv2
+  - monai
   - pip
   - pip:
     - tensorboard

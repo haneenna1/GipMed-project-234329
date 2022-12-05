@@ -11,13 +11,15 @@ import matplotlib.pyplot as plt
 import sklearn.model_selection
 from PIL.Image import Image
 import pathlib
-
+from data import IMAGE_HEIGHT,IMAGE_WIDTH
+from monai.inferers import sliding_window_inference
 BATCH_SIZE = 8
 
 
 def REAL_PATH(path):
-    print(os.path.join(os.path.abspath(os.getcwd()), path))
-    return os.path.join(os.path.abspath(os.getcwd()), path)
+    #changing to hardcoded path
+    return os.path.join("/home/amir.bishara/workspace/project/final_repo/GipMed-project-234329", path)
+
 
 def save_checkpoint(state, filename="my_checkpoint.pth.tar"):
     print("=> Saving checkpoint")
@@ -29,40 +31,6 @@ def load_checkpoint(model, filename="my_checkpoint.pth.tar"):
     checkpoint = torch.load(filename)
     model.load_state_dict(checkpoint["model"])
 
-
-def check_accuracy(loader, model ,epoch ,writer ,device="cuda"):
-    num_correct = 0
-    num_pixels = 0
-    dice_score = 0
-    model.eval()  # set the model to be in eval mode not train mode, for parts that behave differently in train/val
-
-    with torch.no_grad():
-        for cur_batch, (x, y) in enumerate(loader):
-            x = x.to(device)
-            y = y.to(device).unsqueeze(1)
-            preds = torch.sigmoid(model(x))
-            preds = (preds > 0.5).float()
-            cur_correct = (preds == y).sum()
-            num_correct += cur_correct
-            cur_pixels = torch.numel(preds)
-            num_pixels += cur_pixels
-            cur_dice = (2 * (preds * y).sum()) / (
-                    (preds + y).sum() + 1e-8
-            )
-            dice_score += cur_dice
-            global_batch_counter = BATCH_SIZE*epoch + cur_batch
-            acc_per_batch = float(cur_correct/cur_pixels * 100)
-            dice_per_batch = float(cur_dice/BATCH_SIZE)
-            writer.add_scalar('ACC/validation', acc_per_batch, global_batch_counter)
-            writer.add_scalar('DICE_SCORE/validation', dice_per_batch, global_batch_counter)
-
-    print(
-        f"Got {num_correct}/{num_pixels} with acc {num_correct / num_pixels * 100:.2f}"
-    )
-    print(f"Dice score: {dice_score / len(loader)}")
-    model.train()  # set the model back to the training mode
-    
-
 def save_layered_predictions(img_path, maks_path, index,  mode = 'ground',folder = 'layered_preds'):
     img = cv2.imread(img_path)
     mask = cv2.imread(maks_path)
@@ -70,15 +38,21 @@ def save_layered_predictions(img_path, maks_path, index,  mode = 'ground',folder
     dst_path = f'{REAL_PATH(folder)}/img_{index}_{mode}_layered.jpg'
     cv2.imwrite(dst_path, layered_img)
 
-def save_predictions_as_imgs(loader, model, pred_folder="saved_predictions", layers_folder = 'layered_preds' ,device="cuda"):
+def save_predictions_as_imgs(loader, model, pred_folder="saved_predictions", layers_folder = 'layered_preds' ,device="cuda",sliding_window = True):
     clear_folder(pred_folder)
     clear_folder(layers_folder)
     model.eval()
     for idx, (x, y) in enumerate(loader):
         x = x.to(device=device)
         with torch.no_grad():
-            preds = torch.sigmoid(model(x))
-            preds = (preds > 0.5).float()
+            if sliding_window == True:
+                roi_size = (IMAGE_HEIGHT, IMAGE_WIDTH)
+                sw_batch_size = len(x) # TODO:check this number by print
+                preds = sliding_window_inference(
+                        x, roi_size, sw_batch_size, model,overlap=0,progress=True)
+            else:
+                preds = torch.sigmoid(model(x)) # TODO: check it??
+            preds = (preds > 0.5).float() # TODO: check it??
         
         img_path = f"{REAL_PATH(pred_folder)}/img_{idx}.jpg"
         predicted_mask_path = f"{REAL_PATH(pred_folder)}/img_{idx}_predicted_mask.jpg"
@@ -103,8 +77,8 @@ def save_data_set(loader, folder_name="train_set"):
         torchvision.utils.save_image(y.unsqueeze(1), f"{REAL_PATH(folder_name)}/img_sample_mask{idx}.png")
 
 
-def get_data_loaders(img_dir, mask_dir, batch_size = 3, num_workers = 2, train_transforms = None, val_transforms = None,
-                 num_imgs = 30,pin_memory = False):
+def get_data_loaders(img_dir, mask_dir, train_transforms = None, val_transforms = None, num_imgs = 100, batch_size = 3, num_workers = 2,
+                 pin_memory = False):
     """
     returns train and validation data loaders
     Args:
@@ -122,7 +96,7 @@ def get_data_loaders(img_dir, mask_dir, batch_size = 3, num_workers = 2, train_t
     # train_set_list = []
     # validation_set_list = []
     # for img_dir, mask_dir in zip(img_dirs,mask_dirs):
-    full_dir_indices = range(len(os.listdir(img_dir)))
+    full_dir_indices = range(len([path for path in os.listdir(img_dir) if path.endswith(".jpg")]))
     # we want a subset of the data
     chosen_dir_indices = random.choices(full_dir_indices, k = num_imgs)
 
