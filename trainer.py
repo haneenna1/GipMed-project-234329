@@ -1,22 +1,30 @@
 
+from operator import mod
 import torch
 from torch.utils.tensorboard import SummaryWriter
-
-import torch.nn as nn
-import torch.optim as optim
+import os
+import sys
 from tqdm import tqdm
-import numpy as np
-# from utils import gettingDataFolders
 from utils import save_checkpoint, load_checkpoint, save_predictions_as_imgs
 from train_results_classes import BatchResult, EpochResult, FitResult
 from monai.inferers import sliding_window_inference
-from data import IMAGE_HEIGHT,IMAGE_WIDTH
 
 from torchmetrics.classification import BinaryAccuracy
 from torchmetrics import Dice
 
+
 class Trainer:
-    def __init__(self, model, optimizer, loss_fn, accuracy_metric = BinaryAccuracy(), dice_metric = Dice(num_classes=2) , device = None, load_model = False):
+    def __init__(
+        self,
+        model, 
+        optimizer, 
+        loss_fn, 
+        sliding_window_validation = True, 
+        accuracy_metric = BinaryAccuracy(), 
+        dice_metric = Dice(), 
+        device = None, 
+        load_model = False
+    ):
         self.model = model
         if load_model:
             load_checkpoint(self.model)
@@ -26,10 +34,15 @@ class Trainer:
         self.dice_metric = dice_metric
         self.accuracy_metric = accuracy_metric
         self.device = device
+        if sliding_window_validation == True:
+            self.validation_method = model.sliding_window_inference
+        else:
+            self.validation_method = model
+        
         self.train_cur_batch = 0 
         self.val_cur_batch = 0 
         self.writer = SummaryWriter('runs/unet_TCGA_3000')
-        self.sliding_window_validation = False
+        
         if self.device:
             model.to(self.device)
             self.dice_metric = dice_metric.to(self.device)
@@ -45,8 +58,9 @@ class Trainer:
 
         batch_loss = self.loss_fn(per_pixel_score_predictions, batch_masks)
         # print(f'train_batch_loss = {batch_loss}')
+
         # accuracy and dice
-        pred_masks = self.model.predict_labels(batch_imgs) # per pixel classification
+        pred_masks = self.model.predict_labels(per_pixel_score_predictions) # per pixel classification
         dice_score = self.dice_metric(pred_masks, batch_masks.int())
         pixel_accuracy = self.accuracy_metric(pred_masks, batch_masks)
 
@@ -65,18 +79,11 @@ class Trainer:
             # forward
         with torch.no_grad():
 
-            if self.sliding_window_validation:
-                roi_size = (IMAGE_HEIGHT, IMAGE_WIDTH)
-                sw_batch_size = len(batch) # TODO:check this number by print
-                per_pixel_score_predictions = sliding_window_inference(
-                        batch_imgs, roi_size, sw_batch_size, self.model,overlap=0,progress=True)
-            else:
-                per_pixel_score_predictions = self.model(batch_imgs)  #per pixel un normalized score
-            
+            per_pixel_score_predictions = self.validation_method(batch_imgs)  #per pixel un normalized score
             batch_loss = self.loss_fn(per_pixel_score_predictions, batch_masks)
 
             # accuracy and dice
-            pred_masks = self.model.predict_labels(batch_imgs) # per pixel classification
+            pred_masks = self.model.predict_labels(per_pixel_score_predictions) # per pixel classification
             dice_score = self.dice_metric(pred_masks, batch_masks.int())
             pixel_accuracy = self.accuracy_metric(pred_masks, batch_masks)
 
@@ -89,9 +96,9 @@ class Trainer:
         losses = []
         dice_scores = []
         accuracies = []
-        for batch in epoch_loop:  # each iteration is one epoch
-        # for batch in dl_train:  # each iteration is one epoch
-            
+        for batch in epoch_loop:
+
+
             batch_res = self.train_batch(batch)
             losses.append(batch_res.loss)
             accuracies.append(batch_res.pixel_accuracy)
@@ -178,7 +185,7 @@ class Trainer:
                 save_checkpoint(checkpoint)
                 # print some examples to a folder
                 save_predictions_as_imgs(
-                    dl_validation, self.model, device=self.device, sliding_window=self.sliding_window_validation
+                    dl_validation, self.model, inference_method=self.validation_method, device=self.device, 
                 )
             else:
                 epochs_without_improvement+= 1

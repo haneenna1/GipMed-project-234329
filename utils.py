@@ -12,13 +12,12 @@ import sklearn.model_selection
 from PIL.Image import Image
 import pathlib
 from data import IMAGE_HEIGHT,IMAGE_WIDTH
-from monai.inferers import sliding_window_inference
 BATCH_SIZE = 8
 
 
 def REAL_PATH(path):
     #changing to hardcoded path
-    return os.path.join("/home/amir.bishara/workspace/project/final_repo/GipMed-project-234329", path)
+    return os.path.join("/home/haneenna/GipMed-project-234329", path)
 
 
 def save_checkpoint(state, filename="my_checkpoint.pth.tar"):
@@ -38,28 +37,26 @@ def save_layered_predictions(img_path, maks_path, index,  mode = 'ground',folder
     dst_path = f'{REAL_PATH(folder)}/img_{index}_{mode}_layered.jpg'
     cv2.imwrite(dst_path, layered_img)
 
-def save_predictions_as_imgs(loader, model, pred_folder="saved_predictions", layers_folder = 'layered_preds' ,device="cuda",sliding_window = True):
+
+def save_predictions_as_imgs(loader, model, inference_method, num_batches_for_save = 10, pred_folder="saved_predictions", layers_folder = 'layered_preds' ,device="cuda"):
     clear_folder(pred_folder)
     clear_folder(layers_folder)
+
     model.eval()
     for idx, (x, y) in enumerate(loader):
+        if idx == num_batches_for_save:
+            break
         x = x.to(device=device)
         with torch.no_grad():
-            if sliding_window == True:
-                roi_size = (IMAGE_HEIGHT, IMAGE_WIDTH)
-                sw_batch_size = len(x) # TODO:check this number by print
-                preds = sliding_window_inference(
-                        x, roi_size, sw_batch_size, model,overlap=0,progress=True)
-            else:
-                preds = torch.sigmoid(model(x)) # TODO: check it??
-            preds = (preds > 0.5).float() # TODO: check it??
-        
+            per_pixel_score_predictions = inference_method(x) # TODO: check it??
+            pred_masks = model.predict_labels(per_pixel_score_predictions).float()
+
         img_path = f"{REAL_PATH(pred_folder)}/img_{idx}.jpg"
         predicted_mask_path = f"{REAL_PATH(pred_folder)}/img_{idx}_predicted_mask.jpg"
         ground_mask_path =  f"{REAL_PATH(pred_folder)}/img_{idx}_ground_mask.jpg"
 
         torchvision.utils.save_image(x, img_path)
-        torchvision.utils.save_image(preds, predicted_mask_path)
+        torchvision.utils.save_image(pred_masks, predicted_mask_path)
         torchvision.utils.save_image(y.unsqueeze(1), ground_mask_path)
 
         save_layered_predictions(img_path, predicted_mask_path, idx,  mode = 'pred', folder = layers_folder)
@@ -111,8 +108,8 @@ def get_data_loaders(img_dir, mask_dir, train_transforms = None, val_transforms 
     validationLoader = DataLoader(dataset=validation_set, batch_size=1 , shuffle=True, num_workers=num_workers,
                             pin_memory=pin_memory)
     
-    save_data_set(trainLoader, 'train_set')
-    save_data_set(validationLoader, 'validation_set')
+    # save_data_set(trainLoader, 'train_set')
+    # save_data_set(validationLoader, 'validation_set')
     return trainLoader, validationLoader
 
 # For extracting the images sizes

@@ -1,5 +1,7 @@
 import torch
 import torch.nn as nn
+from monai.inferers import sliding_window_inference
+from data import IMAGE_HEIGHT,IMAGE_WIDTH
 
 
 class DoubleConv(nn.Module):
@@ -81,17 +83,25 @@ class Unet(nn.Module):
 
         return self.final_layer(x)
     
-    def predict_labels(self,x):
+    def predict_labels(self,pred_scores):
         '''
-            predict function returns per pixel classification
+            given class raw scores (un normalized) -> returns per pixel classification
         '''
         with torch.no_grad():
-            pred_scores = self.forward(x) 
             if self.out_channels == 1:
                 pred_proba = nn.Sigmoid()(pred_scores)
+                pred_labels = (pred_proba > 0.5).float()
             else : 
                 pred_proba = nn.Softmax(dim = 1)(pred_scores)
-            pred_labels = torch.argmax(pred_proba, dim = 1)
+                pred_labels = torch.argmax(pred_proba, dim = 1).unsqueeze(1)
 
-        return pred_labels.unsqueeze(1)
+        return pred_labels
+
+
+
+    def sliding_window_inference(self, batch):
+        roi_size = (IMAGE_HEIGHT, IMAGE_WIDTH)
+        sw_batch_size = batch.shape[0]
+        per_pixel_score_predictions = sliding_window_inference(batch, roi_size, sw_batch_size, self, overlap=0)
+        return per_pixel_score_predictions
 
