@@ -25,6 +25,7 @@ dependencies:
   - cudatoolkit
   - torchvision
   - torchtext
+  - torchmetrics
   # - cv2
   - monai
   - pip

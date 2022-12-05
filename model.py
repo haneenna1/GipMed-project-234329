@@ -24,6 +24,7 @@ class Unet(nn.Module):
         super(Unet, self).__init__()
         self.down = nn.ModuleList()
         self.up = nn.ModuleList()
+        self.out_channels = out_channels
 
         # down-sampling part of unet
         for num_channels in layers_num_channels:
@@ -40,12 +41,15 @@ class Unet(nn.Module):
                 DoubleConv(2 * num_channels, num_channels)
             ])
 
-        self.final_conv = nn.Conv2d(layers_num_channels[0], out_channels, kernel_size=1)
+        self.final_layer = nn.Conv2d(layers_num_channels[0], out_channels, kernel_size=1)
 
         # pooling layer we're going to use
         self.pool = nn.MaxPool2d(2, 2)
 
     def forward(self, x):
+        '''
+            forward function returns per pixel un normalized scores - (befroe applying softmax)
+        '''
 
         # skip connection we aim to append in the up part
         skip_connections = []
@@ -75,18 +79,19 @@ class Unet(nn.Module):
             concat_x = torch.cat((x, skip_connection), dim=1)
             x = self.up[index + 1](concat_x)
 
-        return self.final_conv(x)
+        return self.final_layer(x)
+    
+    def predict_labels(self,x):
+        '''
+            predict function returns per pixel classification
+        '''
+        with torch.no_grad():
+            pred_scores = self.forward(x) 
+            if self.out_channels == 1:
+                pred_proba = nn.Sigmoid()(pred_scores)
+            else : 
+                pred_proba = nn.Softmax(dim = 1)(pred_scores)
+            pred_labels = torch.argmax(pred_proba, dim = 1)
 
+        return pred_labels.unsqueeze(1)
 
-def test():
-    x = torch.randn((3, 1, 160, 160))
-    model = Unet(in_channels=1, out_channels=1)
-    pred = model(x)
-    print(f'x.shape = {x.shape}')
-    print(f'pred.shape = {pred.shape}')
-    assert x.shape == pred.shape
-    print("dimensions of network are OK...")
-
-
-if __name__ == "__main__":
-    test()

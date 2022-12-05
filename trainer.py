@@ -12,46 +12,50 @@ from train_results_classes import BatchResult, EpochResult, FitResult
 from monai.inferers import sliding_window_inference
 from data import IMAGE_HEIGHT,IMAGE_WIDTH
 
+from torchmetrics.classification import BinaryAccuracy
+from torchmetrics import Dice
+
 class Trainer:
-    def __init__(self, model, optimizer, loss_fn, device = None, load_model = False):
+    def __init__(self, model, optimizer, loss_fn, accuracy_metric = BinaryAccuracy(), dice_metric = Dice(num_classes=2) , device = None, load_model = False):
         self.model = model
         if load_model:
             load_checkpoint(self.model)
 
         self.optimizer = optimizer
         self.loss_fn = loss_fn
+        self.dice_metric = dice_metric
+        self.accuracy_metric = accuracy_metric
         self.device = device
-        if self.device:
-            model.to(self.device)
         self.train_cur_batch = 0 
         self.val_cur_batch = 0 
         self.writer = SummaryWriter('runs/unet_TCGA_3000')
-        self.sliding_window_validation = True
+        self.sliding_window_validation = False
+        if self.device:
+            model.to(self.device)
+            self.dice_metric = dice_metric.to(self.device)
+            self.accuracy_metric = accuracy_metric.to(self.device)
         
-
     def train_batch(self, batch) -> BatchResult:
         batch_imgs, batch_masks = batch
         batch_imgs = batch_imgs.to(self.device)
         batch_masks = batch_masks.unsqueeze(1).to(self.device)  # check if need to unsqueeze
 
         # forward
-        per_pixel_score_predictions = self.model(batch_imgs)
+        per_pixel_score_predictions = self.model(batch_imgs)  #per pixel un normalized score
+
         batch_loss = self.loss_fn(per_pixel_score_predictions, batch_masks)
-
-
+        # print(f'train_batch_loss = {batch_loss}')
         # accuracy and dice
-        pred_masks = torch.sigmoid(per_pixel_score_predictions)
-        pred_masks = (pred_masks > 0.5).float()
-        num_correct = (pred_masks == batch_masks).sum()
-        num_pixels = torch.numel(pred_masks)
-        dice_score = (2 * (pred_masks * batch_masks).sum()) / ((pred_masks + batch_masks).sum() + 1e-8)
+        pred_masks = self.model.predict_labels(batch_imgs) # per pixel classification
+        dice_score = self.dice_metric(pred_masks, batch_masks.int())
+        pixel_accuracy = self.accuracy_metric(pred_masks, batch_masks)
 
         # backward
         self.optimizer.zero_grad()
         batch_loss.backward()
         self.optimizer.step()
 
-        return BatchResult(batch_loss, num_correct, num_pixels, dice_score)
+        return BatchResult(batch_loss, pixel_accuracy, dice_score)
     
     def test_batch(self, batch) -> BatchResult:
         batch_imgs, batch_masks = batch
@@ -66,71 +70,69 @@ class Trainer:
                 sw_batch_size = len(batch) # TODO:check this number by print
                 per_pixel_score_predictions = sliding_window_inference(
                         batch_imgs, roi_size, sw_batch_size, self.model,overlap=0,progress=True)
-                # TODO:check the overlap value if it is okay?
             else:
-                per_pixel_score_predictions = self.model(batch_imgs)
+                per_pixel_score_predictions = self.model(batch_imgs)  #per pixel un normalized score
+            
             batch_loss = self.loss_fn(per_pixel_score_predictions, batch_masks)
 
             # accuracy and dice
-            pred_masks = torch.sigmoid(per_pixel_score_predictions)
-            pred_masks = (pred_masks > 0.5).float()
-            num_correct = (pred_masks == batch_masks).sum()
-            num_pixels = torch.numel(pred_masks)
-            dice_score = (2 * (pred_masks * batch_masks).sum()) / ((pred_masks + batch_masks).sum() + 1e-8)
+            pred_masks = self.model.predict_labels(batch_imgs) # per pixel classification
+            dice_score = self.dice_metric(pred_masks, batch_masks.int())
+            pixel_accuracy = self.accuracy_metric(pred_masks, batch_masks)
 
-        return BatchResult(batch_loss, num_correct, num_pixels, dice_score)
+        return BatchResult(batch_loss, pixel_accuracy, dice_score)
 
 
     def train_epoch(self, dl_train) -> EpochResult:
         epoch_loop = tqdm(dl_train)
 
-        num_correct = 0
-        num_pixels = 0
-        dice_score = 0
         losses = []
+        dice_scores = []
+        accuracies = []
         for batch in epoch_loop:  # each iteration is one epoch
+        # for batch in dl_train:  # each iteration is one epoch
             
             batch_res = self.train_batch(batch)
             losses.append(batch_res.loss)
+            accuracies.append(batch_res.pixel_accuracy)
+            dice_scores.append(batch_res.dice_score)
             # update tqdm
-            epoch_loop.set_postfix(loss=batch_res.loss.item(), dice = batch_res.dice_score.item())
-            num_correct += batch_res.num_correct
-            num_pixels += batch_res.num_correct
-            dice_score += batch_res.dice_score
-            self.writer.add_scalar('Loss/train_Btach',batch_res.loss , self.train_cur_batch)
-            self.writer.add_scalar('Accuracy/train_Batch', batch_res.num_correct/batch_res.num_pixels, self.train_cur_batch)
+            epoch_loop.set_postfix(loss=batch_res.loss.item(), dice = batch_res.dice_score.item(), pixel_accuracy = batch_res.pixel_accuracy.item())
+            self.writer.add_scalar('Loss/train_Batch',batch_res.loss , self.train_cur_batch)
+            self.writer.add_scalar('Accuracy/train_Batch', batch_res.pixel_accuracy, self.train_cur_batch)
             self.writer.add_scalar('Dice_Score/train_Batch',batch_res.dice_score, self.train_cur_batch)
+
             self.train_cur_batch += 1
 
-        accuracy = num_correct / num_pixels
-        dice_score = dice_score/len(dl_train)
-        return EpochResult(losses, accuracy, dice_score)
+        mean_loss = torch.mean(torch.FloatTensor(losses))
+        mean_acc = torch.mean(torch.FloatTensor(accuracies))
+        mean_dice = torch.mean(torch.FloatTensor(dice_scores))
+        return EpochResult(mean_loss, mean_acc, mean_dice)
 
 
     
     def validation_epoch(self, validation_dl):
-        num_correct = 0
-        num_pixels = 0
-        dice_score = 0
         losses = []
+        dice_scores = []
+        accuracies = []
         for batch in validation_dl:  # each iteration is one epoch
-            
+
             batch_res = self.test_batch(batch)
             losses.append(batch_res.loss)
-            # update tqdm
-            num_correct += batch_res.num_correct
-            num_pixels += batch_res.num_correct
-            dice_score += batch_res.dice_score
-            self.writer.add_scalar('Loss/validation_Btach',batch_res.loss , self.val_cur_batch)
-            self.writer.add_scalar('Accuracy/validation_Batch', batch_res.num_correct/batch_res.num_pixels, self.val_cur_batch)
-            self.writer.add_scalar('Dice_Score/validation_Batch',batch_res.dice_score, self.val_cur_batch)
+            accuracies.append(batch_res.pixel_accuracy)
+            dice_scores.append(batch_res.dice_score)
+
+
+            self.writer.add_scalar('Loss/Validation_Batch',batch_res.loss , self.val_cur_batch)
+            self.writer.add_scalar('Accuracy/Validation_Batch', batch_res.pixel_accuracy, self.val_cur_batch)
+            self.writer.add_scalar('Dice_Score/Validation_Batch',batch_res.dice_score, self.val_cur_batch)
+
             self.val_cur_batch += 1
 
-        accuracy = num_correct / num_pixels
-        dice_score = dice_score/len(validation_dl)
-
-        return EpochResult(losses, accuracy, dice_score)
-
+        mean_loss = torch.mean(torch.FloatTensor(losses))
+        mean_acc = torch.mean(torch.FloatTensor(accuracies))
+        mean_dice = torch.mean(torch.FloatTensor(dice_scores))
+        return EpochResult(mean_loss, mean_acc, mean_dice)
 
     def fit(
         self,
@@ -154,15 +156,15 @@ class Trainer:
             train_epoch_result = self.train_epoch(dl_train)
             val_epoch_result = self.validation_epoch(dl_validation)
             
-            train_acc.append(train_epoch_result.accuracy)            
-            train_loss.append(torch.mean(torch.FloatTensor(train_epoch_result.losses)).item())
-            test_acc.append(val_epoch_result.accuracy)
-            test_loss.append(torch.mean(torch.FloatTensor(val_epoch_result.losses)).item())
+            train_acc.append(train_epoch_result.pixel_accuracy)            
+            train_loss.append(train_epoch_result.loss.item())
+            test_acc.append(val_epoch_result.pixel_accuracy)
+            test_loss.append(val_epoch_result.loss.item())
 
-            self.writer.add_scalar('Loss/train_Epoch', torch.mean(torch.FloatTensor(train_epoch_result.losses)).item(), epoch)
-            self.writer.add_scalar('Loss/validation_Epoch', torch.mean(torch.FloatTensor(val_epoch_result.losses)).item(), epoch)
-            self.writer.add_scalar('Accuracy/train_Epoch', train_epoch_result.accuracy.item(), epoch)
-            self.writer.add_scalar('Accuracy/validation_Epoch', val_epoch_result.accuracy.item(),  epoch)
+            self.writer.add_scalar('Loss/train_Epoch', train_epoch_result.loss.item(), epoch)
+            self.writer.add_scalar('Loss/validation_Epoch', val_epoch_result.loss.item(), epoch)
+            self.writer.add_scalar('Accuracy/train_Epoch', train_epoch_result.pixel_accuracy.item(), epoch)
+            self.writer.add_scalar('Accuracy/validation_Epoch', val_epoch_result.pixel_accuracy.item(),  epoch)
             self.writer.add_scalar('Dice_Score/train_Epoch',train_epoch_result.dice_score.item(), epoch)
             self.writer.add_scalar('Dice_Score/validation_Epoch', val_epoch_result.dice_score.item(), epoch)
 

@@ -7,8 +7,7 @@ class BatchResult(NamedTuple):
     """
 
     loss: float
-    num_correct: float
-    num_pixels: int
+    pixel_accuracy: float
     dice_score: float
 
 
@@ -18,8 +17,8 @@ class EpochResult(NamedTuple):
     and accuracy on the dataset (train or test).
     """
 
-    losses: List[float]
-    accuracy: float
+    loss: float
+    pixel_accuracy: float
     dice_score: float
 
 
