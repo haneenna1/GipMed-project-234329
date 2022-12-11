@@ -64,10 +64,10 @@ class Inferer:
                 if visulaize:
                     self.visulaize_shade(image_path, mask_path, inferred_mask_path, index)
                     self.visulaize_sharp(image_path, mask_path, inferred_mask_path, index)
-            #     self.calculate_metrics(pred_scsores,mask)
-            # print(f'------------ Inference ------------ ')
-            # print(f'------------ ACCURACY:{torch.mean(torch.FloatTensor(self.accuracies_list))} ------------ ')
-            # print(f'------------ DICE_SCIRE:{torch.mean(torch.FloatTensor(self.dice_scores_list))}------------ ')
+                self.calculate_metrics(pred_scores,mask.unsqueeze(1))
+            print(f'------------ Inference ------------ ')
+            print(f'------------ ACCURACY:{torch.mean(torch.FloatTensor(self.accuracies_list))} ------------ ')
+            print(f'------------ DICE_SCIRE:{torch.mean(torch.FloatTensor(self.dice_scores_list))}------------ ')
 
     
     # Getting an overlayed image with a shade of colors [Green --- Blue]
