@@ -11,7 +11,7 @@ import cv2
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 from torchmetrics.classification import BinaryAccuracy
-from torchmetrics import Dice
+from torchmetrics import Dice, JaccardIndex
 
 from main import NUM_WORKERS,PIN_MEMPRY,DEVICE
 
@@ -37,6 +37,7 @@ class Inferer:
 
         self.accuracies_list = []
         self.dice_scores_list = []
+        self.jacard_index_list = []
 
     def infer(self,image_dir ,mask_dir, num_images=10, visulaize =True)->None:
         self.num_iamges = num_images
@@ -67,7 +68,8 @@ class Inferer:
                 self.calculate_metrics(pred_scores,mask.unsqueeze(1))
             print(f'------------ Inference ------------ ')
             print(f'------------ ACCURACY:{torch.mean(torch.FloatTensor(self.accuracies_list))} ------------ ')
-            print(f'------------ DICE_SCIRE:{torch.mean(torch.FloatTensor(self.dice_scores_list))}------------ ')
+            print(f'------------ DICE_SCORE:{torch.mean(torch.FloatTensor(self.dice_scores_list))}------------ ')
+            print(f'------------ JACARD_INDEX:{torch.mean(torch.FloatTensor(self.jacard_index_list))}------------ ')
 
     
     # Getting an overlayed image with a shade of colors [Green --- Blue]
@@ -118,11 +120,13 @@ class Inferer:
 
     
     def calculate_metrics(self, per_pixel_score_predictions, masks_batch)->None:
+        jaccard = JaccardIndex('binary').to(DEVICE)
         dice_metric = Dice().to(DEVICE)
         accuracy_metric = BinaryAccuracy().to(DEVICE)
         pred_masks = self.model.predict_labels(per_pixel_score_predictions) 
         self.dice_scores_list.append(dice_metric(pred_masks, masks_batch.int()))
         self.accuracies_list.append(accuracy_metric(pred_masks, masks_batch))
+        self.jacard_index_list.append(jaccard(pred_masks,masks_batch))
 
 
 if __name__ == "__main__": 
