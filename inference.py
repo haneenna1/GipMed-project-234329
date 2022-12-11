@@ -56,24 +56,24 @@ class Inferer:
                 image_path = f"{REAL_PATH(self.out_folder)}/img_{index}.jpg"
                 mask_path = f"{REAL_PATH(self.out_folder)}/img_{index}_mask.jpg"
                 inferred_mask_path = f"{REAL_PATH(self.out_folder)}/img_{index}_infer.jpg"
-                
-                pred_scsores = self.model.sliding_window_inference(image)
+                pred_scores = self.model.sliding_window_inference(image)
                 # saving images
                 torchvision.utils.save_image(image, image_path)
                 torchvision.utils.save_image(mask, mask_path)
-                torchvision.utils.save_image(pred_scsores, inferred_mask_path)
+                torchvision.utils.save_image(pred_scores, inferred_mask_path)
                 if visulaize:
-                    self.visulaize(image_path, mask_path, inferred_mask_path, index)
-                self.calculate_metrics(pred_scsores,mask)
-            print(f'------------ Inference ------------ ')
-            print(f'------------ ACCURACY:{torch.mean(torch.FloatTensor(self.accuracies_list))} ------------ ')
-            print(f'------------ DICE_SCIRE:{torch.mean(torch.FloatTensor(self.dice_scores_list))}------------ ')
+                    self.visulaize_shade(image_path, mask_path, inferred_mask_path, index)
+                    self.visulaize_sharp(image_path, mask_path, inferred_mask_path, index)
+            #     self.calculate_metrics(pred_scsores,mask)
+            # print(f'------------ Inference ------------ ')
+            # print(f'------------ ACCURACY:{torch.mean(torch.FloatTensor(self.accuracies_list))} ------------ ')
+            # print(f'------------ DICE_SCIRE:{torch.mean(torch.FloatTensor(self.dice_scores_list))}------------ ')
 
     
-    # the sharp Green indicates our prediction
-    # the sharp Blue indicates the original mask
-    # the light blue indicates both masks
-    def visulaize(self, image_path, mask_path, inferred_mask_path, index)->None:
+    # Getting an overlayed image with a shade of colors [Green --- Blue]
+    # the sharp Blue indicates the original mask, and the sharp Green 
+    # indicates the inferred mask. the light blue regions would indicates both
+    def visulaize_shade(self, image_path, mask_path, inferred_mask_path, index)->None:
 
         img = cv2.imread(image_path)
         mask = cv2.imread(mask_path)
@@ -81,21 +81,41 @@ class Inferer:
         
         # Coloring the inferred mask with green
         inferrred_mask_image = np.zeros((inferred_mask.shape[0], inferred_mask.shape[1],3), dtype=np.uint8)
-        non_black_index = np.where(np.all((inferred_mask > 120),axis=-1)) # TODO:maybe should apply the sigmoid and then do comparison > 0.5?
+        non_black_index = np.where(np.all((inferred_mask >= 127),axis=-1))
         # CV2 uses the BGR color so inferrred_mask_image would be green, you may print and check
         inferrred_mask_image[non_black_index] = (0, 255, 0)
+        # To check out the colored mask
+        # cv2.imwrite( f"{REAL_PATH(self.out_folder)}/img_{index}_inferrred_mask_image_non_black.jpg",inferrred_mask_image)
         # overlaying our inferred mask on the original image
         first_segmentation_overlay = cv2.addWeighted(img, 0.5, inferrred_mask_image, 0.5, 0)
 
         # Coloring the original mask with Blue
         orig_mask_image = np.zeros((mask.shape[0] ,mask.shape[1],3), dtype=np.uint8)
-        non_black_index = np.where(np.all((mask > 120),axis=-1))
+        non_black_index = np.where(np.all((mask >= 127),axis=-1))
         orig_mask_image[non_black_index] = (255, 0, 0)
+        # To check out the colored mask
+        # cv2.imwrite(f"{REAL_PATH(self.out_folder)}/img_{index}_mask_image_non_black.jpg",orig_mask_image,)
         # overlaying the original mask on the first overlayed result
         sec_segmentation_overlay = cv2.addWeighted(first_segmentation_overlay, 0.65, orig_mask_image, 0.35, 0)
         # save the final overlayed image
-        overlay_path = f"{REAL_PATH(self.out_folder)}/img_{index}_overlay.jpg"
-        cv2.imwrite(overlay_path,sec_segmentation_overlay)
+        shade_visulaize_apth = f"{REAL_PATH(self.out_folder)}/img_{index}_shade_visulaize.jpg"
+        cv2.imwrite(shade_visulaize_apth,sec_segmentation_overlay)
+
+    def visulaize_sharp(self, image_path, mask_path, inferred_mask_path, index)->None:
+        img = cv2.imread(image_path)
+        mask = cv2.imread(mask_path)
+        inferred_mask = cv2.imread(inferred_mask_path)
+        
+        # Coloring the inferred mask with green
+        both_non_black_index = np.where(np.all(((inferred_mask >= 127) & (mask >= 127)),axis=-1))
+        infer_non_black_index = np.where(np.all(((inferred_mask >= 127) & (mask < 127)),axis=-1))
+        mask_non_black_index = np.where(np.all(((mask >= 127 )& (inferred_mask<127) ),axis=-1))
+        img[both_non_black_index] = (0, 0, 255)
+        img[infer_non_black_index] = (0, 255, 0)
+        img[mask_non_black_index] = (255, 0, 0)
+        sharp_visulaize_path = f"{REAL_PATH(self.out_folder)}/img_{index}_sharp_visulaize.jpg"
+        cv2.imwrite(sharp_visulaize_path,img)
+
     
     def calculate_metrics(self, per_pixel_score_predictions, masks_batch)->None:
         dice_metric = Dice().to(DEVICE)
@@ -108,6 +128,6 @@ class Inferer:
 if __name__ == "__main__": 
     thumbnails_dir = "/mnt/gipmed_new/Data/Breast/ABCTB_TIF/SegData/Thumbs"
     masks_dir = "/mnt/gipmed_new/Data/Breast/ABCTB_TIF/SegData/SegMaps"
-    prev_checkpoint = "Results/TCGA_3000_with_sliding_window/my_checkpoint.pth.tar"
+    prev_checkpoint = "my_checkpoint.pth.tar"
     unet_inferer = Inferer(prev_checkpoint, out_folder="ABCB_TIF_infer")
     unet_inferer.infer(thumbnails_dir, masks_dir, num_images=10, visulaize=True)
