@@ -12,9 +12,9 @@ import albumentations as A
 from albumentations.pytorch import ToTensorV2
 from torchmetrics.classification import BinaryAccuracy
 from torchmetrics import Dice, JaccardIndex
-
+import PIL.Image
 from main import NUM_WORKERS,PIN_MEMPRY,DEVICE
-
+PIL.Image.MAX_IMAGE_PIXELS = None
 class Inferer:
 
     def __init__(self, prev_checkpoint, out_folder = "inference_output") -> None:
@@ -130,8 +130,8 @@ class Inferer:
 
 
 if __name__ == "__main__": 
-    thumbnails_dir = "/mnt/gipmed_new/Data/Breast/ABCTB_TIF/SegData/Thumbs"
-    masks_dir = "/mnt/gipmed_new/Data/Breast/ABCTB_TIF/SegData/SegMaps"
+    thumbnails_dir = "/mnt/gipmed_new/Data/Breast/HEROHE/SegData/Thumbs"
+    masks_dir = "/mnt/gipmed_new/Data/Breast/HEROHE/SegData/SegMaps"
     prev_checkpoint = "my_checkpoint.pth.tar"
-    unet_inferer = Inferer(prev_checkpoint, out_folder="ABCB_TIF_infer")
+    unet_inferer = Inferer(prev_checkpoint, out_folder="HEROHE_infer")
     unet_inferer.infer(thumbnails_dir, masks_dir, num_images=10, visulaize=True)

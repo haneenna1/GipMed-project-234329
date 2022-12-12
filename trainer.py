@@ -41,7 +41,7 @@ class Trainer:
         
         self.train_cur_batch = 0 
         self.val_cur_batch = 0 
-        self.writer = SummaryWriter('runs/unet_TCGA_3000')
+        self.writer = SummaryWriter('runs/unet_FINAL')
         
         if self.device:
             model.to(self.device)

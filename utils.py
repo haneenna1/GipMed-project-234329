@@ -1,23 +1,19 @@
 import os
 import random
 import cv2
-import numpy as np
 import torch
 import torchvision
-from torch.utils.checkpoint import checkpoint
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader
 from data import ThumbnailsDataset
-import matplotlib.pyplot as plt
 import sklearn.model_selection
 from PIL.Image import Image
-import pathlib
-from data import IMAGE_HEIGHT,IMAGE_WIDTH
-BATCH_SIZE = 8
+from cmath import inf
+BATCH_SIZE = 10
 
 
 def REAL_PATH(path):
     #changing to hardcoded path
-    return os.path.join("/home/haneenna/GipMed-project-234329", path)
+    return os.path.join("/home/amir.bishara/workspace/project/final_repo/GipMed-project-234329", path)
 
 
 def save_checkpoint(state, filename="my_checkpoint.pth.tar"):
@@ -74,7 +70,7 @@ def save_data_set(loader, folder_name="train_set"):
         torchvision.utils.save_image(y.unsqueeze(1), f"{REAL_PATH(folder_name)}/img_sample_mask{idx}.png")
 
 
-def get_data_loaders(img_dir, mask_dir, train_transforms = None, val_transforms = None, num_imgs = 100, batch_size = 3, num_workers = 2,
+def get_data_loaders(img_dirs:list, mask_dirs:list, train_transforms = None, val_transforms = None, num_imgs = 100, batch_size = 3, num_workers = 2,
                  pin_memory = False):
     """
     returns train and validation data loaders
@@ -87,20 +83,26 @@ def get_data_loaders(img_dir, mask_dir, train_transforms = None, val_transforms 
     num_workers: num workers for the data loading
     pin_memory
     """
-    VALIDATION_RATIO = 0.2
+    VALIDATION_RATIO = 0.15
     MANUAL_SEED = 42
 
-    # train_set_list = []
-    # validation_set_list = []
-    # for img_dir, mask_dir in zip(img_dirs,mask_dirs):
-    full_dir_indices = range(len([path for path in os.listdir(img_dir) if path.endswith(".jpg")]))
-    # we want a subset of the data
-    chosen_dir_indices = random.choices(full_dir_indices, k = num_imgs)
+    total_images = 0
+    for img_dir, mask_dir in zip(img_dirs,mask_dirs):
+        images_set = set([ image.replace("_thumb.jpg","") for image in os.listdir(img_dir) if image.endswith(".jpg")])
+        masks_set =  set([ mask.replace("_SegMap.png","") for mask in os.listdir(mask_dir) if mask.endswith(".png")])
+        total_images += len(images_set.intersection(masks_set))
+    full_dir_indices = range(total_images)
+
+    # We want a subset of the data based on the num_images param
+    if num_imgs == inf:
+        chosen_dir_indices = random.choices(full_dir_indices, k= total_images)
+    else:
+        chosen_dir_indices = random.choices(full_dir_indices, k= num_imgs)
 
     train_indices, val_indices = sklearn.model_selection.train_test_split(chosen_dir_indices, test_size = VALIDATION_RATIO, random_state = MANUAL_SEED )
 
-    train_set = ThumbnailsDataset(img_dir, mask_dir, train_indices, transform= train_transforms)
-    validation_set =  ThumbnailsDataset(img_dir, mask_dir, val_indices, transform=val_transforms)
+    train_set = ThumbnailsDataset(img_dirs, mask_dirs, train_indices, transform= train_transforms)
+    validation_set =  ThumbnailsDataset(img_dirs, mask_dirs, val_indices, transform=val_transforms)
     
     print(f'length of train  :{len(train_set)} lengt of validation: {len(validation_set)}')
     trainLoader = DataLoader(dataset=train_set, batch_size=batch_size, shuffle=True, num_workers=num_workers,
@@ -140,3 +142,61 @@ def clear_folder(dir):
             os.remove(f_path)
     else:
         os.mkdir(REAL_PATH(dir))
+
+def get_datasets_paths(datasets:list):
+    datasetsNames = ["ABCTB_TIF", "Carmel", "Covilha", "Haemek",
+                     "HEROHE", "Ipatimup", "Sheba", "TCGA", "TMA"]
+    assert len(set(datasets).intersection(set(datasetsNames))) == min(len(datasetsNames),len(datasets))
+    image_dirs = []
+    mask_dirs = []
+    basePath = "/mnt/gipmed_new/Data/Breast/"
+
+    for dataset in datasets:
+
+        if dataset in ["ABCTB_TIF", "Covilha", "HEROHE", "Ipatimup", "TCGA"]:
+            image_dirs.append(os.path.join(basePath, dataset, "SegData", "Thumbs"))
+            mask_dirs.append(os.path.join(basePath, dataset, "SegData", "SegMaps"))
+
+        if dataset == "Carmel":
+            for counter in range(1, 12):
+                if counter <= 8:
+                    folder = "1-8"
+                else:
+                    folder = "9-11"
+
+                image_dirs.append(os.path.join(basePath, dataset, folder,
+                                               "Batch_" + str(counter), "CARMEL" + str(counter),
+                                               "SegData", "Thumbs"))
+                mask_dirs.append(os.path.join(basePath, dataset, folder,
+                                              "Batch_" + str(counter), "CARMEL" + str(counter),
+                                              "SegData", "SegMaps"))
+            for counter in range(1, 5):
+                image_dirs.append(os.path.join(basePath, dataset, "BENIGN",
+                                               "Batch_" + str(counter), "BENIGN" + str(counter),
+                                               "SegData", "Thumbs"))
+                mask_dirs.append(os.path.join(basePath, dataset, "BENIGN",
+                                              "Batch_" + str(counter), "BENIGN" + str(counter),
+                                              "SegData", "SegMaps"))
+        if dataset == "Sheba":
+            for counter in range(2, 7):
+                image_dirs.append(os.path.join(basePath, dataset,
+                                               "Batch_" + str(counter), "SHEBA" + str(counter),
+                                               "SegData", "Thumbs"))
+                mask_dirs.append(os.path.join(basePath, dataset,
+                                              "Batch_" + str(counter), "SHEBA" + str(counter),
+                                              "SegData", "SegMaps"))
+        if dataset == "Haemek":
+            for counter in range(1, 2):
+                image_dirs.append(os.path.join(basePath, dataset,
+                                               "Batch_" + str(counter), "HAEMEK" + str(counter),
+                                               "SegData", "Thumbs"))
+                mask_dirs.append(os.path.join(basePath, dataset,
+                                              "Batch_" + str(counter), "HAEMEK" + str(counter),
+                                              "SegData", "SegMaps"))
+
+        if dataset == "TMA":  # other data in this dataset don't have masks
+            image_dirs.append(os.path.join(basePath, dataset, "bliss_data/01-011/HE/TMA_HE_01-011",
+                                           "SegData", "Thumbs"))
+            mask_dirs.append(os.path.join(basePath, dataset, "bliss_data/01-011/HE/TMA_HE_01-011",
+                                          "SegData", "SegMaps"))
+    return image_dirs, mask_dirs

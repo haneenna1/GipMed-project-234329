@@ -3,6 +3,11 @@ from torch import nn
 import torch.optim as optim
 from model import Unet
 from trainer import Trainer
+from cmath import inf
+# For reading huge images
+import PIL.Image
+PIL.Image.MAX_IMAGE_PIXELS = None
+
 # Setting the device for the Training
 
 import albumentations as A
@@ -11,10 +16,10 @@ import utils
 
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 LEARNING_RATE = 1e-4
-NUM_EPOCHS = 15
+NUM_EPOCHS = 75
 BATCH_SIZE = 10
 PIN_MEMPRY = True
-NUM_WORKERS = 10 # <= cpus
+NUM_WORKERS = 8 # <= cpus
 IMAGE_HEIGHT = 512
 IMAGE_WIDTH = 512  
 MANUAL_SEED = 42
@@ -71,10 +76,23 @@ def main():
         ],
     )
 
-    train_dl, val_dl = utils.get_data_loaders(img_dir, mask_dir, train_transform, val_transform,
-                                                1500, BATCH_SIZE, NUM_WORKERS, PIN_MEMPRY)
+    default_datasets = [
+        "ABCTB_TIF",
+        "Carmel",
+        "Covilha",
+        "Haemek",   
+        "HEROHE",
+        "Ipatimup",
+        "Sheba",
+        "TCGA",
+        "TMA"
+    ]
 
-    trainer = Trainer(model, optimizer,loss_fn , sliding_window_validation=False, device = DEVICE)
+    image_dirs, mask_dirs = utils.get_datasets_paths(default_datasets)
+    train_dl, val_dl = utils.get_data_loaders(image_dirs, mask_dirs, train_transform, val_transform_for_sliding_window,
+                                                inf, BATCH_SIZE, NUM_WORKERS, PIN_MEMPRY)
+
+    trainer = Trainer(model, optimizer,loss_fn , sliding_window_validation=True, device = DEVICE)
     trainer.fit(train_dl, val_dl,  NUM_EPOCHS, early_stopping = 8)
   
 if __name__ == "__main__": 
