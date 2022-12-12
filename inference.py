@@ -1,13 +1,11 @@
 import torch
-from model import Unet
-from data import ThumbnailsDataset
 from torch.utils.data import DataLoader
 import torchvision.utils
-from utils import REAL_PATH,load_checkpoint,clear_folder
 import os
 from random import choices
 import numpy as np
 import cv2
+from PIL import Image
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 from torchmetrics.classification import BinaryAccuracy
@@ -15,14 +13,21 @@ from torchmetrics import Dice, JaccardIndex
 import PIL.Image
 from main import NUM_WORKERS,PIN_MEMPRY,DEVICE
 PIL.Image.MAX_IMAGE_PIXELS = None
+
+from Unet import Unet
+from data import ThumbnailsDataset
+from utils import REAL_PATH, load_checkpoint, clear_folder
+
 class Inferer:
 
-    def __init__(self, prev_checkpoint, out_folder = "inference_output") -> None:
+    def __init__(self, checkpint = None, model = Unet(in_channels=3, out_channels=1).to(DEVICE), out_folder = "inference_output") -> None:
         clear_folder(REAL_PATH(out_folder))
         self.out_folder = out_folder
     
-        self.model = Unet(in_channels=3, out_channels=1).to(DEVICE)
-        load_checkpoint(self.model, prev_checkpoint)
+        self.model = model
+        
+        if checkpint != None:
+            load_checkpoint(self.model, checkpint)
 
         self.inference_transforms = A.Compose(
         [
@@ -45,7 +50,7 @@ class Inferer:
         full_dir_indices = range(len([path for path in os.listdir(image_dir) if path.endswith(".jpg")]))
         chosen_dir_indices = choices(full_dir_indices, k = num_images)
         # passing transfomrs without any augmentation
-        dataset = ThumbnailsDataset(image_dir= image_dir, mask_dir=mask_dir, indices=chosen_dir_indices, transform=self.inference_transforms)
+        dataset = ThumbnailsDataset(image_dirs= [image_dir], mask_dirs=[mask_dir], indices=chosen_dir_indices, transform=self.inference_transforms)
         dataloader = DataLoader(dataset, batch_size=1, num_workers=NUM_WORKERS,pin_memory=PIN_MEMPRY) 
         
         self.model.eval()
@@ -54,18 +59,21 @@ class Inferer:
                 image = image.to(DEVICE)
                 mask = mask.to(DEVICE)
 
+                per_pixel_pred_scores = self.model.sliding_window_inference(image)
+                inferred_mask = self.model.predict_labels(per_pixel_pred_scores)
+                
                 image_path = f"{REAL_PATH(self.out_folder)}/img_{index}.jpg"
                 mask_path = f"{REAL_PATH(self.out_folder)}/img_{index}_mask.jpg"
                 inferred_mask_path = f"{REAL_PATH(self.out_folder)}/img_{index}_infer.jpg"
-                pred_scores = self.model.sliding_window_inference(image)
                 # saving images
                 torchvision.utils.save_image(image, image_path)
                 torchvision.utils.save_image(mask, mask_path)
-                torchvision.utils.save_image(pred_scores, inferred_mask_path)
+                torchvision.utils.save_image(inferred_mask, inferred_mask_path)
+                
                 if visulaize:
                     self.visulaize_shade(image_path, mask_path, inferred_mask_path, index)
                     self.visulaize_sharp(image_path, mask_path, inferred_mask_path, index)
-                self.calculate_metrics(pred_scores,mask.unsqueeze(1))
+                self.calculate_metrics(per_pixel_pred_scores,mask.unsqueeze(1))
             print(f'------------ Inference ------------ ')
             print(f'------------ ACCURACY:{torch.mean(torch.FloatTensor(self.accuracies_list))} ------------ ')
             print(f'------------ DICE_SCORE:{torch.mean(torch.FloatTensor(self.dice_scores_list))}------------ ')
@@ -77,24 +85,30 @@ class Inferer:
     # indicates the inferred mask. the light blue regions would indicates both
     def visulaize_shade(self, image_path, mask_path, inferred_mask_path, index)->None:
 
-        img = cv2.imread(image_path)
-        mask = cv2.imread(mask_path)
-        inferred_mask = cv2.imread(inferred_mask_path)
+        # img = cv2.imread(image_path)
+        # mask = cv2.imread(mask_path)
+        # inferred_mask = cv2.imread(inferred_mask_path)
+        
+        img = np.array(Image.open(image_path).convert("RGB"))
+        mask = np.array(Image.open(mask_path).convert("1"), dtype=np.float32)
+        
+        inferred_mask = np.array(Image.open(inferred_mask_path).convert("1"), dtype=np.float32)
         
         # Coloring the inferred mask with green
-        inferrred_mask_image = np.zeros((inferred_mask.shape[0], inferred_mask.shape[1],3), dtype=np.uint8)
-        non_black_index = np.where(np.all((inferred_mask >= 127),axis=-1))
+        inferrred_mask_colored = np.zeros((inferred_mask.shape[0], inferred_mask.shape[1],3), dtype=np.uint8)
+        non_black_index = np.where(inferred_mask == 1)
+    
         # CV2 uses the BGR color so inferrred_mask_image would be green, you may print and check
-        inferrred_mask_image[non_black_index] = (0, 255, 0)
+        inferrred_mask_colored[non_black_index[0], non_black_index[1], :] = (0, 255, 0)
         # To check out the colored mask
         # cv2.imwrite( f"{REAL_PATH(self.out_folder)}/img_{index}_inferrred_mask_image_non_black.jpg",inferrred_mask_image)
         # overlaying our inferred mask on the original image
-        first_segmentation_overlay = cv2.addWeighted(img, 0.5, inferrred_mask_image, 0.5, 0)
+        first_segmentation_overlay = cv2.addWeighted(img, 0.5, inferrred_mask_colored, 0.5, 0)
 
         # Coloring the original mask with Blue
         orig_mask_image = np.zeros((mask.shape[0] ,mask.shape[1],3), dtype=np.uint8)
-        non_black_index = np.where(np.all((mask >= 127),axis=-1))
-        orig_mask_image[non_black_index] = (255, 0, 0)
+        non_black_index = np.where(mask == 1)
+        orig_mask_image[non_black_index[0], non_black_index[1], :] = (255, 0, 0)
         # To check out the colored mask
         # cv2.imwrite(f"{REAL_PATH(self.out_folder)}/img_{index}_mask_image_non_black.jpg",orig_mask_image,)
         # overlaying the original mask on the first overlayed result
@@ -104,17 +118,25 @@ class Inferer:
         cv2.imwrite(shade_visulaize_apth,sec_segmentation_overlay)
 
     def visulaize_sharp(self, image_path, mask_path, inferred_mask_path, index)->None:
-        img = cv2.imread(image_path)
-        mask = cv2.imread(mask_path)
-        inferred_mask = cv2.imread(inferred_mask_path)
+        # img = cv2.imread(image_path)
+        # mask = cv2.imread(mask_path)
+        # inferred_mask = cv2.imread(inferred_mask_path)
+        
+        img = np.array(Image.open(image_path).convert("RGB"))
+        mask = np.array(Image.open(mask_path).convert("1"), dtype=np.float32)
+        
+        inferred_mask = np.array(Image.open(inferred_mask_path).convert("1"), dtype=np.float32)
+
+        
         
         # Coloring the inferred mask with green
-        both_non_black_index = np.where(np.all(((inferred_mask >= 127) & (mask >= 127)),axis=-1))
-        infer_non_black_index = np.where(np.all(((inferred_mask >= 127) & (mask < 127)),axis=-1))
-        mask_non_black_index = np.where(np.all(((mask >= 127 )& (inferred_mask<127) ),axis=-1))
-        img[both_non_black_index] = (0, 0, 255)
-        img[infer_non_black_index] = (0, 255, 0)
-        img[mask_non_black_index] = (255, 0, 0)
+        both_non_black_index = np.where((inferred_mask == 1) & (mask == 1))
+        infer_non_black_index = np.where((inferred_mask == 1) & (mask == 0))
+        mask_non_black_index = np.where((inferred_mask == 0) & (mask == 1))
+        
+        img[both_non_black_index[0], both_non_black_index[1], :] = (0, 0, 255)
+        img[infer_non_black_index[0], infer_non_black_index[1], :] = (0, 255, 0)
+        img[mask_non_black_index[0], mask_non_black_index[1], : ] = (255, 0, 0)
         sharp_visulaize_path = f"{REAL_PATH(self.out_folder)}/img_{index}_sharp_visulaize.jpg"
         cv2.imwrite(sharp_visulaize_path,img)
 
@@ -130,8 +152,13 @@ class Inferer:
 
 
 if __name__ == "__main__": 
-    thumbnails_dir = "/mnt/gipmed_new/Data/Breast/HEROHE/SegData/Thumbs"
-    masks_dir = "/mnt/gipmed_new/Data/Breast/HEROHE/SegData/SegMaps"
+    # thumbnails_dir = "/mnt/gipmed_new/Data/Breast/HEROHE/SegData/Thumbs"
+    # masks_dir = "/mnt/gipmed_new/Data/Breast/HEROHE/SegData/SegMaps"
+    
+    img_dir = "/mnt/gipmed_new/Data/Breast/TCGA/SegData/Thumbs"
+    # check other path than mnt/
+    mask_dir = "/mnt/gipmed_new/Data/Breast/TCGA/SegData/SegMaps"
+    
     prev_checkpoint = "my_checkpoint.pth.tar"
-    unet_inferer = Inferer(prev_checkpoint, out_folder="HEROHE_infer")
-    unet_inferer.infer(thumbnails_dir, masks_dir, num_images=10, visulaize=True)
+    unet_inferer = Inferer(prev_checkpoint, out_folder="TCGA_infer")
+    unet_inferer.infer(img_dir, mask_dir, num_images=1, visulaize=True)

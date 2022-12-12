@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 import torch.optim as optim
-from model import Unet
+from Unet import Unet
 from trainer import Trainer
 from cmath import inf
 # For reading huge images

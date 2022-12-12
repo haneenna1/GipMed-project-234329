@@ -15,3 +15,5 @@ runs/
 training-ref.py
 .gitignore
 Results/
+HEROHE_infer/
+TCGA_infer/
