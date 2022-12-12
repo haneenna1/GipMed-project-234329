@@ -17,3 +17,5 @@ training-ref.py
 Results/
 HEROHE_infer/
 TCGA_infer/
+ABCB_TIF_infer/
+sbatch.out

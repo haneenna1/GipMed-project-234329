@@ -10,7 +10,7 @@ IMAGE_HEIGHT=512
 IMAGE_WIDTH=512
 
 class ThumbnailsDataset(Dataset):
-    def __init__(self, image_dirs:list, mask_dirs:list, indices,transform=None, visualize_aug = False):
+    def __init__(self, image_dirs:list, mask_dirs:list, indices,transform=list, visualize_aug = False):
         self.image_dirs = image_dirs
         self.mask_dirs = mask_dirs
         self.transform = transform
@@ -43,12 +43,20 @@ class ThumbnailsDataset(Dataset):
             orig_image.save(os.path.join('./augmented_imgs', ntpath.basename(img_path)))
 
         if self.transform is not None:
-            augmentations = self.transform(image=image, mask=mask)
-            image = augmentations["image"]
-            mask = augmentations["mask"]
-            if self.visualize_aug:
-                aug_img_name = ntpath.basename(img_path).replace("_thumb", "_aug")
-                save_image(image, os.path.join('./augmented_imgs', aug_img_name))
+            # a list of tranforms
+            if isinstance(self.transform, list):
+                for t in self.transform:
+                    augmentations = t(image=image, mask=mask)
+                    image = augmentations["image"]
+                    mask = augmentations["mask"]
+            #one transform
+            else:
+                augmentations = self.transform(image=image, mask=mask)
+                image = augmentations["image"]
+                mask = augmentations["mask"]
+        if self.visualize_aug:
+            aug_img_name = ntpath.basename(img_path).replace("_thumb", "_aug")
+            save_image(image, os.path.join('./augmented_imgs', aug_img_name))
 
         return image, mask
 

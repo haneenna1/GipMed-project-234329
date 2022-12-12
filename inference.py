@@ -59,7 +59,7 @@ class Inferer:
                 image = image.to(DEVICE)
                 mask = mask.to(DEVICE)
 
-                per_pixel_pred_scores = self.model.sliding_window_inference(image)
+                per_pixel_pred_scores = self.model.sliding_window_validation(image, mask)
                 inferred_mask = self.model.predict_labels(per_pixel_pred_scores)
                 
                 image_path = f"{REAL_PATH(self.out_folder)}/img_{index}.jpg"
@@ -152,13 +152,8 @@ class Inferer:
 
 
 if __name__ == "__main__": 
-    # thumbnails_dir = "/mnt/gipmed_new/Data/Breast/HEROHE/SegData/Thumbs"
-    # masks_dir = "/mnt/gipmed_new/Data/Breast/HEROHE/SegData/SegMaps"
-    
-    img_dir = "/mnt/gipmed_new/Data/Breast/TCGA/SegData/Thumbs"
-    # check other path than mnt/
-    mask_dir = "/mnt/gipmed_new/Data/Breast/TCGA/SegData/SegMaps"
-    
+    thumbnails_dir = "/mnt/gipmed_new/Data/Breast/ABCTB_TIF/SegData/Thumbs"
+    masks_dir = "/mnt/gipmed_new/Data/Breast/ABCTB_TIF/SegData/SegMaps"
     prev_checkpoint = "my_checkpoint.pth.tar"
-    unet_inferer = Inferer(prev_checkpoint, out_folder="TCGA_infer")
-    unet_inferer.infer(img_dir, mask_dir, num_images=1, visulaize=True)
+    unet_inferer = Inferer(prev_checkpoint, out_folder="ABCB_TIF_infer")
+    unet_inferer.infer(thumbnails_dir, masks_dir, num_images=10, visulaize=True)

@@ -13,6 +13,7 @@ PIL.Image.MAX_IMAGE_PIXELS = None
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 import utils
+import CustomTransforms as C
 
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 LEARNING_RATE = 1e-4
@@ -65,16 +66,18 @@ def main():
         ],
     )
 
-    val_transform_for_sliding_window = A.Compose(
-        [
+    val_transform_for_sliding_window = [
+        A.Compose([
             A.Normalize(
                 mean=[0.0, 0.0, 0.0],
                 std=[1.0, 1.0, 1.0],
                 max_pixel_value=255.0,
             ),
             ToTensorV2(),
-        ],
-    )
+        ])
+        , 
+        C.CropTissueRoi(),
+    ]
 
     default_datasets = [
         "ABCTB_TIF",
@@ -88,9 +91,9 @@ def main():
         "TMA"
     ]
 
-    image_dirs, mask_dirs = utils.get_datasets_paths(default_datasets)
+    image_dirs, mask_dirs = utils.get_datasets_paths(["HEROHE", "Ipatimup","Sheba","TCGA"])
     train_dl, val_dl = utils.get_data_loaders(image_dirs, mask_dirs, train_transform, val_transform_for_sliding_window,
-                                                inf, BATCH_SIZE, NUM_WORKERS, PIN_MEMPRY)
+                                                10, BATCH_SIZE, NUM_WORKERS, PIN_MEMPRY)
 
     trainer = Trainer(model, optimizer,loss_fn , sliding_window_validation=True, device = DEVICE)
     trainer.fit(train_dl, val_dl,  NUM_EPOCHS, early_stopping = 8)

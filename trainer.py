@@ -35,7 +35,7 @@ class Trainer:
         self.accuracy_metric = accuracy_metric
         self.device = device
         if sliding_window_validation == True:
-            self.validation_method = model.sliding_window_inference
+            self.validation_method = model.sliding_window_validation
         else:
             self.validation_method = model
         
@@ -147,6 +147,7 @@ class Trainer:
         dl_validation,
         num_epochs: int,
         early_stopping: int = None,
+        checkpoint_pth = None, 
         print_every: int = 1,
         **kw,
     )  -> FitResult:
@@ -181,8 +182,10 @@ class Trainer:
                 # ====== YOUR CODE: ======
                 best_dice_score = val_epoch_result.dice_score
                 epochs_without_improvement = 0
-                checkpoint = {'model': self.model.state_dict(), 'optimizer': self.optimizer.state_dict()}
-                save_checkpoint(checkpoint)
+                
+                if checkpoint_pth != None:
+                    model_checkpoint = {'model': self.model.state_dict(), 'optimizer': self.optimizer.state_dict()}
+                    save_checkpoint(model_checkpoint, checkpoint_pth)
                 # print some examples to a folder
                 save_predictions_as_imgs(
                     dl_validation, self.model, inference_method=self.validation_method, device=self.device, 

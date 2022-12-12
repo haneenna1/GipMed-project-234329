@@ -8,12 +8,17 @@ from data import ThumbnailsDataset
 import sklearn.model_selection
 from PIL.Image import Image
 from cmath import inf
+
 BATCH_SIZE = 10
 
 
 def REAL_PATH(path):
     #changing to hardcoded path
-    return os.path.join("/home/amir.bishara/workspace/project/final_repo/GipMed-project-234329", path)
+    return os.path.join("/home/haneenna/GipMed-project-234329", path)
+
+# def REAL_PATH(path):
+#     #changing to hardcoded path
+#     return os.path.join("/home/amir.bishara/workspace/project/final_repo/GipMed-project-234329", path)
 
 
 def save_checkpoint(state, filename="my_checkpoint.pth.tar"):
@@ -110,8 +115,8 @@ def get_data_loaders(img_dirs:list, mask_dirs:list, train_transforms = None, val
     validationLoader = DataLoader(dataset=validation_set, batch_size=1 , shuffle=True, num_workers=num_workers,
                             pin_memory=pin_memory)
     
-    # save_data_set(trainLoader, 'train_set')
-    # save_data_set(validationLoader, 'validation_set')
+    save_data_set(trainLoader, 'train_set')
+    save_data_set(validationLoader, 'validation_set')
     return trainLoader, validationLoader
 
 # For extracting the images sizes

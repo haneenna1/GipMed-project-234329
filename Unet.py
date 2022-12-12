@@ -99,9 +99,15 @@ class Unet(nn.Module):
 
 
 
-    def sliding_window_inference(self, batch):
+    def sliding_window_validation(self, img_batch, mask_batch = None):
+        """
+            mask_batch is none if this is a test image without a ground truth mask. 
+            mask_batch is not none if this is a validation image with a ground truth mask. 
+            
+        """
+        
         roi_size = (IMAGE_HEIGHT, IMAGE_WIDTH)
-        sw_batch_size = batch.shape[0]
-        per_pixel_score_predictions = sliding_window_inference(batch, roi_size, sw_batch_size, self, overlap=0, progress=True)
+        sw_batch_size = img_batch.shape[0]
+        per_pixel_score_predictions = sliding_window_inference(img_batch, roi_size, sw_batch_size, self, overlap=0, progress=True)
         return per_pixel_score_predictions
 
