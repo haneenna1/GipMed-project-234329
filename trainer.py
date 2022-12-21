@@ -5,9 +5,8 @@ from torch.utils.tensorboard import SummaryWriter
 import os
 import sys
 from tqdm import tqdm
-from utils import save_checkpoint, load_checkpoint, save_predictions_as_imgs
+from utils import save_checkpoint, load_checkpoint, save_validations
 from train_results_classes import BatchResult, EpochResult, FitResult
-from monai.inferers import sliding_window_inference
 
 from torchmetrics.classification import BinaryAccuracy
 from torchmetrics import Dice
@@ -17,6 +16,7 @@ class Trainer:
     def __init__(
         self,
         model, 
+        model_name, #give a name for the model, in order to save results in separate folders
         optimizer, 
         loss_fn, 
         sliding_window_validation = True, 
@@ -26,10 +26,12 @@ class Trainer:
         load_model = False
     ):
         self.model = model
-        if load_model:
-            load_checkpoint(self.model)
+        self.model_name = model_name
+        
 
         self.optimizer = optimizer
+        if load_model:
+            load_checkpoint(self.model, self.optimizer)
         self.loss_fn = loss_fn
         self.dice_metric = dice_metric
         self.accuracy_metric = accuracy_metric
@@ -41,7 +43,9 @@ class Trainer:
         
         self.train_cur_batch = 0 
         self.val_cur_batch = 0 
-        self.writer = SummaryWriter('runs/unet_FINAL')
+        
+        tesnorboard_logs_pth = os.path.join('runs/', model_name)
+        self.writer = SummaryWriter(tesnorboard_logs_pth)
         
         if self.device:
             model.to(self.device)
@@ -105,9 +109,9 @@ class Trainer:
             dice_scores.append(batch_res.dice_score)
             # update tqdm
             epoch_loop.set_postfix(loss=batch_res.loss.item(), dice = batch_res.dice_score.item(), pixel_accuracy = batch_res.pixel_accuracy.item())
-            self.writer.add_scalar('Loss/train_Batch',batch_res.loss , self.train_cur_batch)
-            self.writer.add_scalar('Accuracy/train_Batch', batch_res.pixel_accuracy, self.train_cur_batch)
-            self.writer.add_scalar('Dice_Score/train_Batch',batch_res.dice_score, self.train_cur_batch)
+            # self.writer.add_scalar('Loss/train_Batch',batch_res.loss , self.train_cur_batch)
+            # self.writer.add_scalar('Accuracy/train_Batch', batch_res.pixel_accuracy, self.train_cur_batch)
+            # self.writer.add_scalar('Dice_Score/train_Batch',batch_res.dice_score, self.train_cur_batch)
 
             self.train_cur_batch += 1
 
@@ -130,9 +134,9 @@ class Trainer:
             dice_scores.append(batch_res.dice_score)
 
 
-            self.writer.add_scalar('Loss/Validation_Batch',batch_res.loss , self.val_cur_batch)
-            self.writer.add_scalar('Accuracy/Validation_Batch', batch_res.pixel_accuracy, self.val_cur_batch)
-            self.writer.add_scalar('Dice_Score/Validation_Batch',batch_res.dice_score, self.val_cur_batch)
+            # self.writer.add_scalar('Loss/Validation_Batch',batch_res.loss , self.val_cur_batch)
+            # self.writer.add_scalar('Accuracy/Validation_Batch', batch_res.pixel_accuracy, self.val_cur_batch)
+            # self.writer.add_scalar('Dice_Score/Validation_Batch',batch_res.dice_score, self.val_cur_batch)
 
             self.val_cur_batch += 1
 
@@ -147,7 +151,7 @@ class Trainer:
         dl_validation,
         num_epochs: int,
         early_stopping: int = None,
-        checkpoint_pth = None, 
+        save_checkpoint = None, 
         print_every: int = 1,
         **kw,
     )  -> FitResult:
@@ -183,11 +187,12 @@ class Trainer:
                 best_dice_score = val_epoch_result.dice_score
                 epochs_without_improvement = 0
                 
-                if checkpoint_pth != None:
+                if save_checkpoint != None:
                     model_checkpoint = {'model': self.model.state_dict(), 'optimizer': self.optimizer.state_dict()}
+                    checkpoint_pth = os.path.join('model_checkpoints/', self.model_name, '.pth', '.tar')
                     save_checkpoint(model_checkpoint, checkpoint_pth)
                 # print some examples to a folder
-                save_predictions_as_imgs(
+                save_validations(
                     dl_validation, self.model, inference_method=self.validation_method, device=self.device, 
                 )
             else:

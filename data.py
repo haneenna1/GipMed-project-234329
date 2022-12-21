@@ -43,7 +43,7 @@ class ThumbnailsDataset(Dataset):
             orig_image.save(os.path.join('./augmented_imgs', ntpath.basename(img_path)))
 
         if self.transform is not None:
-            # a list of tranforms
+            # a list of tranforms, to support custom transforms
             if isinstance(self.transform, list):
                 for t in self.transform:
                     augmentations = t(image=image, mask=mask)

@@ -15,8 +15,6 @@ class CropTissueRoi(object):
     def __call__(self, image, mask):
         
         validation_rois = masks_to_boxes(mask.unsqueeze(0))
-        print(f'validation_rois = {validation_rois}')
-        print(f'shape of mask in CropTissueRoi = {mask.unsqueeze(0).shape}')
         
         x_min = torch.min(validation_rois[:, 0])
         y_min = torch.min(validation_rois[:, 1])
@@ -27,8 +25,6 @@ class CropTissueRoi(object):
         left = x_min.int().item()
         width = (x_max - x_min).int().item()
         height = (y_max - y_min).int().item()
-        
-        print(f'top = {top} left ={left} width = {width} height ={height}')
         
         cropped_img = TF.crop(image, top=top, left=left, width=width, height=height)
         cropped_masks = TF.crop(mask, top=top, left=left, width=width, height=height)

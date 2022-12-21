@@ -5,6 +5,7 @@ import os
 from random import choices
 import numpy as np
 import cv2
+
 from PIL import Image
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
@@ -20,14 +21,14 @@ from utils import REAL_PATH, load_checkpoint, clear_folder
 
 class Inferer:
 
-    def __init__(self, checkpint = None, model = Unet(in_channels=3, out_channels=1).to(DEVICE), out_folder = "inference_output") -> None:
+    def __init__(self, checkpoint = None, model = Unet(in_channels=3, out_channels=1).to(DEVICE), out_folder = "inference_output") -> None:
         clear_folder(REAL_PATH(out_folder))
         self.out_folder = out_folder
     
         self.model = model
         
-        if checkpint != None:
-            load_checkpoint(self.model, checkpint)
+        if checkpoint != None:
+            load_checkpoint(self.model, checkpoint= checkpoint)
 
         self.inference_transforms = A.Compose(
         [
@@ -84,11 +85,6 @@ class Inferer:
     # the sharp Blue indicates the original mask, and the sharp Green 
     # indicates the inferred mask. the light blue regions would indicates both
     def visulaize_shade(self, image_path, mask_path, inferred_mask_path, index)->None:
-
-        # img = cv2.imread(image_path)
-        # mask = cv2.imread(mask_path)
-        # inferred_mask = cv2.imread(inferred_mask_path)
-        
         img = np.array(Image.open(image_path).convert("RGB"))
         mask = np.array(Image.open(mask_path).convert("1"), dtype=np.float32)
         
@@ -100,36 +96,26 @@ class Inferer:
     
         # CV2 uses the BGR color so inferrred_mask_image would be green, you may print and check
         inferrred_mask_colored[non_black_index[0], non_black_index[1], :] = (0, 255, 0)
-        # To check out the colored mask
-        # cv2.imwrite( f"{REAL_PATH(self.out_folder)}/img_{index}_inferrred_mask_image_non_black.jpg",inferrred_mask_image)
-        # overlaying our inferred mask on the original image
         first_segmentation_overlay = cv2.addWeighted(img, 0.5, inferrred_mask_colored, 0.5, 0)
 
         # Coloring the original mask with Blue
         orig_mask_image = np.zeros((mask.shape[0] ,mask.shape[1],3), dtype=np.uint8)
         non_black_index = np.where(mask == 1)
         orig_mask_image[non_black_index[0], non_black_index[1], :] = (255, 0, 0)
-        # To check out the colored mask
-        # cv2.imwrite(f"{REAL_PATH(self.out_folder)}/img_{index}_mask_image_non_black.jpg",orig_mask_image,)
-        # overlaying the original mask on the first overlayed result
         sec_segmentation_overlay = cv2.addWeighted(first_segmentation_overlay, 0.65, orig_mask_image, 0.35, 0)
+        
         # save the final overlayed image
         shade_visulaize_apth = f"{REAL_PATH(self.out_folder)}/img_{index}_shade_visulaize.jpg"
+        
         cv2.imwrite(shade_visulaize_apth,sec_segmentation_overlay)
 
     def visulaize_sharp(self, image_path, mask_path, inferred_mask_path, index)->None:
-        # img = cv2.imread(image_path)
-        # mask = cv2.imread(mask_path)
-        # inferred_mask = cv2.imread(inferred_mask_path)
         
         img = np.array(Image.open(image_path).convert("RGB"))
         mask = np.array(Image.open(mask_path).convert("1"), dtype=np.float32)
         
         inferred_mask = np.array(Image.open(inferred_mask_path).convert("1"), dtype=np.float32)
-
         
-        
-        # Coloring the inferred mask with green
         both_non_black_index = np.where((inferred_mask == 1) & (mask == 1))
         infer_non_black_index = np.where((inferred_mask == 1) & (mask == 0))
         mask_non_black_index = np.where((inferred_mask == 0) & (mask == 1))
@@ -137,7 +123,35 @@ class Inferer:
         img[both_non_black_index[0], both_non_black_index[1], :] = (0, 0, 255)
         img[infer_non_black_index[0], infer_non_black_index[1], :] = (0, 255, 0)
         img[mask_non_black_index[0], mask_non_black_index[1], : ] = (255, 0, 0)
+        
         sharp_visulaize_path = f"{REAL_PATH(self.out_folder)}/img_{index}_sharp_visulaize.jpg"
+        
+        #add legend
+        cv2.rectangle(img, (20, 20), (500, 250), (200, 200, 200), -1)
+        
+        position = (60, 60)
+        text = "Predicted by Unet only"
+        color = (0, 255, 0)
+
+        cv2.rectangle(img, (position[0]-40, position[1]-30), (position[0], position[1] + 20), color, -1)
+        cv2.putText(img, text, position, cv2.FONT_HERSHEY_TRIPLEX, 1, (255, 255, 255), 2)
+
+        position = (60, 120)
+        text = "Predictedf by OTSU only"
+        color = (255, 0, 0)
+        
+        cv2.rectangle(img, (position[0]-40, position[1]-30), (position[0], position[1] + 20), color, -1)
+        cv2.putText(img, text, position, cv2.FONT_HERSHEY_TRIPLEX, 1, (255, 255, 255), 2)        
+
+        position = (60, 180)
+        text = "Predicted by Both"
+        color = (0, 0, 255)
+        
+        cv2.rectangle(img, (position[0]-40, position[1]-30), (position[0], position[1] + 20), color, -1)
+        cv2.putText(img, text, position, cv2.FONT_HERSHEY_TRIPLEX, 1, (255, 255, 255), 2)
+        
+        
+        
         cv2.imwrite(sharp_visulaize_path,img)
 
     
@@ -152,8 +166,8 @@ class Inferer:
 
 
 if __name__ == "__main__": 
-    thumbnails_dir = "/mnt/gipmed_new/Data/Breast/ABCTB_TIF/SegData/Thumbs"
-    masks_dir = "/mnt/gipmed_new/Data/Breast/ABCTB_TIF/SegData/SegMaps"
-    prev_checkpoint = "my_checkpoint.pth.tar"
+    thumbnails_dir = "/data/Breast/ABCTB_TIF/SegData/Thumbs"
+    masks_dir = "/data/Breast/ABCTB_TIF/SegData/SegMaps"
+    prev_checkpoint = "TCGA_only_with_0.15val.tar"
     unet_inferer = Inferer(prev_checkpoint, out_folder="ABCB_TIF_infer")
     unet_inferer.infer(thumbnails_dir, masks_dir, num_images=10, visulaize=True)
