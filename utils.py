@@ -21,25 +21,27 @@ def REAL_PATH(path):
 #     return os.path.join("/home/amir.bishara/workspace/project/final_repo/GipMed-project-234329", path)
 
 
-def save_checkpoint(state, filename="my_checkpoint.pth.tar"):
+def save_checkpoint(state, checkpoint="my_checkpoint.pth.tar"):
     print("=> Saving checkpoint")
-    torch.save(state, filename)
+    if not(os.path.isdir('model_checkpoints/')):
+        os.mkdir('models_checkpoint/')
+    check_point_path = os.path.join("model_checkpoints/", checkpoint)
+    torch.save(state, check_point_path)
 
 
-def load_checkpoint(model, filename="my_checkpoint.pth.tar"):
+def load_checkpoint(model, optimizer = None, checkpoint="my_checkpoint.pth.tar"):
     print("=> Loading checkpoint")
-    checkpoint = torch.load(filename)
+    check_point_path = os.path.join("model_checkpoints/", checkpoint)
+    checkpoint = torch.load(check_point_path)
     model.load_state_dict(checkpoint["model"])
+    if optimizer:
+        optimizer.load_state_dict(checkpoint["optimizer"])
 
 def save_layered_predictions(img_path, maks_path, index,  mode = 'ground',folder = 'layered_preds'):
-    img = cv2.imread(img_path)
-    mask = cv2.imread(maks_path)
-    layered_img = cv2.addWeighted(img, 0.5, mask, 0.5, 0)
-    dst_path = f'{REAL_PATH(folder)}/img_{index}_{mode}_layered.jpg'
-    cv2.imwrite(dst_path, layered_img)
+    pass
 
 
-def save_predictions_as_imgs(loader, model, inference_method, num_batches_for_save = 10, pred_folder="saved_predictions", layers_folder = 'layered_preds' ,device="cuda"):
+def save_validations(loader, model, inference_method, num_batches_for_save = 10, pred_folder="saved_predictions", layers_folder = 'layered_preds' ,device="cuda"):
     clear_folder(pred_folder)
     clear_folder(layers_folder)
 
@@ -60,9 +62,6 @@ def save_predictions_as_imgs(loader, model, inference_method, num_batches_for_sa
         torchvision.utils.save_image(pred_masks, predicted_mask_path)
         torchvision.utils.save_image(y.unsqueeze(1), ground_mask_path)
 
-        save_layered_predictions(img_path, predicted_mask_path, idx,  mode = 'pred', folder = layers_folder)
-        save_layered_predictions(img_path, ground_mask_path, idx, folder = layers_folder)
-
     model.train()
 
 
@@ -75,7 +74,7 @@ def save_data_set(loader, folder_name="train_set"):
         torchvision.utils.save_image(y.unsqueeze(1), f"{REAL_PATH(folder_name)}/img_sample_mask{idx}.png")
 
 
-def get_data_loaders(img_dirs:list, mask_dirs:list, train_transforms = None, val_transforms = None, num_imgs = 100, batch_size = 3, num_workers = 2,
+def get_data_loaders(img_dirs:list, mask_dirs:list, train_transforms = None, val_transforms = None, data_size = 'all',  validation_ratio = 0.15, train_batch_size = 3, validation_batch_size = 1, num_workers = 2,
                  pin_memory = False):
     """
     returns train and validation data loaders
@@ -88,7 +87,7 @@ def get_data_loaders(img_dirs:list, mask_dirs:list, train_transforms = None, val
     num_workers: num workers for the data loading
     pin_memory
     """
-    VALIDATION_RATIO = 0.15
+   
     MANUAL_SEED = 42
 
     total_images = 0
@@ -96,27 +95,33 @@ def get_data_loaders(img_dirs:list, mask_dirs:list, train_transforms = None, val
         images_set = set([ image.replace("_thumb.jpg","") for image in os.listdir(img_dir) if image.endswith(".jpg")])
         masks_set =  set([ mask.replace("_SegMap.png","") for mask in os.listdir(mask_dir) if mask.endswith(".png")])
         total_images += len(images_set.intersection(masks_set))
+        
     full_dir_indices = range(total_images)
 
-    # We want a subset of the data based on the num_images param
-    if num_imgs == inf:
-        chosen_dir_indices = random.choices(full_dir_indices, k= total_images)
+    if data_size == 'all':
+        chosen_dir_indices = full_dir_indices
+    # We want a subset of the dataset for the train/validation.
     else:
-        chosen_dir_indices = random.choices(full_dir_indices, k= num_imgs)
+        random.seed(MANUAL_SEED)
+        chosen_dir_indices = random.choices(full_dir_indices, k = data_size)
 
-    train_indices, val_indices = sklearn.model_selection.train_test_split(chosen_dir_indices, test_size = VALIDATION_RATIO, random_state = MANUAL_SEED )
-
+    train_indices, val_indices = sklearn.model_selection.train_test_split(chosen_dir_indices, test_size = validation_ratio, random_state = MANUAL_SEED )
+    
+    print(f"Creating dataloaders for the datasets: {img_dirs}. Train size: {len(train_indices)} images, Validation size: {len(val_indices)} images")
+    
     train_set = ThumbnailsDataset(img_dirs, mask_dirs, train_indices, transform= train_transforms)
-    validation_set =  ThumbnailsDataset(img_dirs, mask_dirs, val_indices, transform=val_transforms)
     
-    print(f'length of train  :{len(train_set)} lengt of validation: {len(validation_set)}')
-    trainLoader = DataLoader(dataset=train_set, batch_size=batch_size, shuffle=True, num_workers=num_workers,
-                            pin_memory=pin_memory)
-    validationLoader = DataLoader(dataset=validation_set, batch_size=1 , shuffle=True, num_workers=num_workers,
+    trainLoader = DataLoader(dataset=train_set, batch_size=train_batch_size, shuffle=True, num_workers=num_workers,
                             pin_memory=pin_memory)
     
-    save_data_set(trainLoader, 'train_set')
-    save_data_set(validationLoader, 'validation_set')
+    validation_set, validationLoader = None, None
+    
+    if validation_ratio > 0 :
+        validation_set =  ThumbnailsDataset(img_dirs, mask_dirs, val_indices, transform=val_transforms)
+        validationLoader = DataLoader(dataset=validation_set, batch_size=validation_batch_size , shuffle=True, num_workers=num_workers,
+                                pin_memory=pin_memory)
+    
+    
     return trainLoader, validationLoader
 
 # For extracting the images sizes
@@ -154,7 +159,9 @@ def get_datasets_paths(datasets:list):
     assert len(set(datasets).intersection(set(datasetsNames))) == min(len(datasetsNames),len(datasets))
     image_dirs = []
     mask_dirs = []
-    basePath = "/mnt/gipmed_new/Data/Breast/"
+    
+    # faster than using the mnt directory. workso only if on gipdeep10 
+    basePath = "/data/Breast/"
 
     for dataset in datasets:
 
