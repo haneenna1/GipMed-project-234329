@@ -22,12 +22,13 @@ dependencies:
   # pytorch
   - pytorch
   - pytorch-cuda=11.6
+
   - cudatoolkit
   - torchvision
   - torchtext
   - torchmetrics
-  # - cv2
   - monai
+  - opencv
   - pip
   - pip:
     - tensorboard
