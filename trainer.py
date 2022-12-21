@@ -16,7 +16,7 @@ class Trainer:
     def __init__(
         self,
         model, 
-        model_name, #give a name for the model, in order to save results in separate folders
+        model_name, #give a name for the model, helps for automatiaclly naming the output folders of the run (e.g tensorboard logs, visualizations ..)
         optimizer, 
         loss_fn, 
         sliding_window_validation = True, 
@@ -151,7 +151,7 @@ class Trainer:
         dl_validation,
         num_epochs: int,
         early_stopping: int = None,
-        save_checkpoint = None, 
+        save_checkpoint:bool = True, 
         print_every: int = 1,
         **kw,
     )  -> FitResult:

@@ -17,10 +17,10 @@ import CustomTransforms as C
 
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 LEARNING_RATE = 1e-4
-NUM_EPOCHS = 75
+NUM_EPOCHS = 50
 BATCH_SIZE = 10
 PIN_MEMPRY = True
-NUM_WORKERS = 8 # <= cpus
+NUM_WORKERS = 10 # <= cpus
 IMAGE_HEIGHT = 512
 IMAGE_WIDTH = 512  
 MANUAL_SEED = 42
@@ -30,10 +30,7 @@ def main():
     model = Unet(in_channels=3, out_channels=1).to(DEVICE)
     optimizer = optim.Adam(model.parameters(), lr = LEARNING_RATE)
     loss_fn = nn.BCEWithLogitsLoss()
-    img_dir = "/mnt/gipmed_new/Data/Breast/TCGA/SegData/Thumbs"
-    # check other path than mnt/
-    mask_dir = "/mnt/gipmed_new/Data/Breast/TCGA/SegData/SegMaps"
-    
+
     
     train_transform = A.Compose(
         [
@@ -91,12 +88,12 @@ def main():
         "TMA"
     ]
 
-    image_dirs, mask_dirs = utils.get_datasets_paths(["HEROHE", "Ipatimup","Sheba","TCGA"])
-    train_dl, val_dl = utils.get_data_loaders(image_dirs, mask_dirs, train_transform, val_transform_for_sliding_window,
-                                                10, BATCH_SIZE, NUM_WORKERS, PIN_MEMPRY)
+    image_dirs, mask_dirs = utils.get_datasets_paths(["TCGA"])
+    train_dl, val_dl = utils.get_data_loaders(image_dirs, mask_dirs, train_transform, val_transform_for_sliding_window, 
+                                              train_batch_size=BATCH_SIZE, num_workers= NUM_WORKERS, pin_memory= PIN_MEMPRY)
 
-    trainer = Trainer(model, optimizer,loss_fn , sliding_window_validation=True, device = DEVICE)
-    trainer.fit(train_dl, val_dl,  NUM_EPOCHS, early_stopping = 8)
+    trainer = Trainer(model, 'TCGA_only_with_0.15val',optimizer,loss_fn , sliding_window_validation=True, device = DEVICE)
+    trainer.fit(train_dl, val_dl,  NUM_EPOCHS,  early_stopping = 5)
   
 if __name__ == "__main__": 
     main()

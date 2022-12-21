@@ -6,6 +6,9 @@ import os
 from torchvision.utils import save_image
 from PIL import Image
 import albumentations as A
+from utils import clear_folder
+Image.MAX_IMAGE_PIXELS = None
+
 
 
 from albumentations.pytorch import ToTensorV2
@@ -35,14 +38,6 @@ class CropTissueRoi(object):
     
 from torchvision.io import read_image
 if __name__ == '__main__':
-    img_path = os.path.join("/mnt/gipmed_new/Data/Breast/TCGA/SegData/Thumbs",
-                            'TCGA-3C-AAAU-01A-01-TS1.2F52DD63-7476-4E85-B7C6-E06092DB6CC1_thumb.jpg')
-    mask_path = os.path.join("/mnt/gipmed_new/Data/Breast/TCGA/SegData/SegMaps",
-                            'TCGA-3C-AAAU-01A-01-TS1.2F52DD63-7476-4E85-B7C6-E06092DB6CC1_SegMap.png')
-    
-    image = np.array(Image.open(img_path).convert("RGB"))
-    mask = np.array(Image.open(mask_path).convert("1"), dtype=np.float32)
-
 
     val_transform_for_sliding_window = A.Compose([
             A.Normalize(
@@ -52,17 +47,29 @@ if __name__ == '__main__':
             ),
             ToTensorV2(),
     ])
-    aug = val_transform_for_sliding_window(image=image, mask=mask)
-
-    aug_image = aug['image']
-    aug_mask = aug['mask']
-    
     Cr = CropTissueRoi()
-    cropped_img = Cr(aug_image, aug_mask)['image']
-    cropped_mask = Cr(aug_image, aug_mask)['mask']
+
+    counter = 1
+
+    HEROHE_imgs_path = os.path.join("/mnt/gipmed_new/Data/Breast/HEROHE/SegData/Thumbs")
+    HEROHE_masks_path = os.path.join("/mnt/gipmed_new/Data/Breast/HEROHE/SegData/SegMaps")
+
+    clear_folder("./crop_validations")
+
+    for index, img in enumerate( os.listdir(HEROHE_imgs_path)):
+        if index >= counter:
+            break
+        image = np.array(Image.open(os.path.join(HEROHE_imgs_path,img)).convert("RGB"))
+        mask = np.array(Image.open(os.path.join(HEROHE_masks_path,img.replace("_thumb.jpg","_SegMap.png"))).convert("1"), dtype=np.float32)
+        aug = val_transform_for_sliding_window(image=image, mask=mask)
+        aug_image = aug['image']
+        aug_mask = aug['mask']
     
-    save_image(aug_image, os.path.join('./crop_validations', 'orig_img.jpg'))
-    save_image(aug_mask, os.path.join('./crop_validations', 'orig_mask.png'))
-    save_image(cropped_img, os.path.join('./crop_validations', 'cropped_img.jpg'))
-    save_image(cropped_mask, os.path.join('./crop_validations', 'cropped_mask.png'))
+        cropped_img = Cr(aug_image, aug_mask)['image']
+        cropped_mask = Cr(aug_image, aug_mask)['mask']
+        save_image(aug_image, os.path.join(f"./crop_validations", f"orig_img_{index}.jpg"))
+        save_image(aug_mask, os.path.join(f"./crop_validations", f"orig_mask{index}.png"))
+        save_image(cropped_img, os.path.join(f"./crop_validations", f"cropped_img{index}.jpg"))
+        save_image(cropped_mask, os.path.join(f"./crop_validations", f"cropped_mask{index}.png"))
+
     
