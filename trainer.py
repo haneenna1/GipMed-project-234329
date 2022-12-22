@@ -150,7 +150,7 @@ class Trainer:
         dl_train,
         dl_validation,
         num_epochs: int,
-        early_stopping: int = None,
+        early_stopping: int = 5,
         save_checkpoint:bool = True, 
         print_every: int = 1,
         **kw,
@@ -189,8 +189,8 @@ class Trainer:
                 
                 if save_checkpoint != None:
                     model_checkpoint = {'model': self.model.state_dict(), 'optimizer': self.optimizer.state_dict()}
-                    checkpoint_pth = os.path.join('model_checkpoints/', self.model_name, '.pth', '.tar')
-                    save_checkpoint(model_checkpoint, checkpoint_pth)
+                    checkpoint_name = self.model_name
+                    save_checkpoint(model_checkpoint, checkpoint_name)
                 # print some examples to a folder
                 save_validations(
                     dl_validation, self.model, inference_method=self.validation_method, device=self.device, 

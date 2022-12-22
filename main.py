@@ -32,8 +32,9 @@ def main():
     loss_fn = nn.BCEWithLogitsLoss()
 
     
-    train_transform = A.Compose(
-        [
+    train_transform = [ 
+        C.CropTissueRoi(), # we could use this for the train data too! espicially useful for training on sparse images like HEROHE
+        A.Compose([
             A.PadIfNeeded(IMAGE_HEIGHT, IMAGE_WIDTH),
             A.CropNonEmptyMaskIfExists(height=IMAGE_HEIGHT,width=IMAGE_WIDTH),
             # A.RandomCrop(height=IMAGE_HEIGHT,width=IMAGE_WIDTH),
@@ -47,8 +48,8 @@ def main():
                 max_pixel_value=255.0,
             ),
             ToTensorV2(),
-        ],
-    )
+        ]), 
+    ]
     # should passed when using the centerCrop without sliding window
     val_transform = A.Compose(
         [
@@ -77,23 +78,27 @@ def main():
     ]
 
     default_datasets = [
+        "TCGA",
         "ABCTB_TIF",
         "Carmel",
-        "Covilha",
         "Haemek",   
+        "Covilha",
         "HEROHE",
         "Ipatimup",
         "Sheba",
-        "TCGA",
-        "TMA"
+        # "TMA"
     ]
+    # ===== Change here  =====
+    datasets = ["TCGA",  "ABCTB_TIF", "Haemek", "Ipatimup" ]
+    model_name = 'TCG_ABC_emk_Iptmp'
+    # ==========  ===========
 
-    image_dirs, mask_dirs = utils.get_datasets_paths(["TCGA"])
+    image_dirs, mask_dirs = utils.get_datasets_paths(datasets)
     train_dl, val_dl = utils.get_data_loaders(image_dirs, mask_dirs, train_transform, val_transform_for_sliding_window, 
                                               train_batch_size=BATCH_SIZE, num_workers= NUM_WORKERS, pin_memory= PIN_MEMPRY)
 
-    trainer = Trainer(model, 'TCGA_only_with_0.15val',optimizer,loss_fn , sliding_window_validation=True, device = DEVICE)
-    trainer.fit(train_dl, val_dl,  NUM_EPOCHS,  early_stopping = 5)
+    trainer = Trainer(model, model_name,optimizer,loss_fn , sliding_window_validation=True, device = DEVICE)
+    trainer.fit(train_dl, val_dl,  NUM_EPOCHS)
   
 if __name__ == "__main__": 
     main()

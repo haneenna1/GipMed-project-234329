@@ -21,17 +21,17 @@ def REAL_PATH(path):
 #     return os.path.join("/home/amir.bishara/workspace/project/final_repo/GipMed-project-234329", path)
 
 
-def save_checkpoint(state, checkpoint="my_checkpoint.pth.tar"):
-    print("=> Saving checkpoint")
+def save_checkpoint(state, checkpoint="my_checkpoint"):# you give inly the name of the checkpoint. this function cares for the exact path + extension  
     if not(os.path.isdir('model_checkpoints/')):
         os.mkdir('models_checkpoint/')
-    check_point_path = os.path.join("model_checkpoints/", checkpoint)
+    check_point_path = os.path.join("model_checkpoints/", checkpoint) +".pth.tar"
+    print("=> Saving checkpoint at ",check_point_path )
     torch.save(state, check_point_path)
 
 
-def load_checkpoint(model, optimizer = None, checkpoint="my_checkpoint.pth.tar"):
-    print("=> Loading checkpoint")
-    check_point_path = os.path.join("model_checkpoints/", checkpoint)
+def load_checkpoint(model, optimizer = None, checkpoint_name="my_checkpoint"): # you give inly the name of the checkpoint. this function cares for the exact path + extension  
+    check_point_path = os.path.join("model_checkpoints/", checkpoint_name) +".pth.tar"
+    print("=> Loading checkpoint from ", check_point_path)
     checkpoint = torch.load(check_point_path)
     model.load_state_dict(checkpoint["model"])
     if optimizer:

@@ -6,29 +6,30 @@ from random import choices
 import numpy as np
 import cv2
 
-from PIL import Image
+import PIL.Image
+PIL.Image.MAX_IMAGE_PIXELS = None
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 from torchmetrics.classification import BinaryAccuracy
 from torchmetrics import Dice, JaccardIndex
-import PIL.Image
-from main import NUM_WORKERS,PIN_MEMPRY,DEVICE
-PIL.Image.MAX_IMAGE_PIXELS = None
 
+from main import NUM_WORKERS,PIN_MEMPRY,DEVICE
 from Unet import Unet
 from data import ThumbnailsDataset
-from utils import REAL_PATH, load_checkpoint, clear_folder
+from utils import *
 
 class Inferer:
 
-    def __init__(self, checkpoint = None, model = Unet(in_channels=3, out_channels=1).to(DEVICE), out_folder = "inference_output") -> None:
+    def __init__(self, checkpoint_name = None, model = Unet(in_channels=3, out_channels=1).to(DEVICE), out_folder = "inference_output") -> None:
+        if not(os.path.isdir(REAL_PATH(out_folder))):
+                os.makedirs(REAL_PATH(out_folder))
         clear_folder(REAL_PATH(out_folder))
         self.out_folder = out_folder
     
         self.model = model
         
-        if checkpoint != None:
-            load_checkpoint(self.model, checkpoint= checkpoint)
+        if checkpoint_name != None:
+            load_checkpoint(self.model, checkpoint_name= checkpoint_name)
 
         self.inference_transforms = A.Compose(
         [
@@ -85,10 +86,10 @@ class Inferer:
     # the sharp Blue indicates the original mask, and the sharp Green 
     # indicates the inferred mask. the light blue regions would indicates both
     def visulaize_shade(self, image_path, mask_path, inferred_mask_path, index)->None:
-        img = np.array(Image.open(image_path).convert("RGB"))
-        mask = np.array(Image.open(mask_path).convert("1"), dtype=np.float32)
+        img = np.array(PIL.Image.open(image_path).convert("RGB"))
+        mask = np.array(PIL.Image.open(mask_path).convert("1"), dtype=np.float32)
         
-        inferred_mask = np.array(Image.open(inferred_mask_path).convert("1"), dtype=np.float32)
+        inferred_mask = np.array(PIL.Image.open(inferred_mask_path).convert("1"), dtype=np.float32)
         
         # Coloring the inferred mask with green
         inferrred_mask_colored = np.zeros((inferred_mask.shape[0], inferred_mask.shape[1],3), dtype=np.uint8)
@@ -111,10 +112,10 @@ class Inferer:
 
     def visulaize_sharp(self, image_path, mask_path, inferred_mask_path, index)->None:
         
-        img = np.array(Image.open(image_path).convert("RGB"))
-        mask = np.array(Image.open(mask_path).convert("1"), dtype=np.float32)
+        img = np.array(PIL.Image.open(image_path).convert("RGB"))
+        mask = np.array(PIL.Image.open(mask_path).convert("1"), dtype=np.float32)
         
-        inferred_mask = np.array(Image.open(inferred_mask_path).convert("1"), dtype=np.float32)
+        inferred_mask = np.array(PIL.Image.open(inferred_mask_path).convert("1"), dtype=np.float32)
         
         both_non_black_index = np.where((inferred_mask == 1) & (mask == 1))
         infer_non_black_index = np.where((inferred_mask == 1) & (mask == 0))
@@ -166,8 +167,13 @@ class Inferer:
 
 
 if __name__ == "__main__": 
-    thumbnails_dir = "/data/Breast/ABCTB_TIF/SegData/Thumbs"
-    masks_dir = "/data/Breast/ABCTB_TIF/SegData/SegMaps"
-    prev_checkpoint = "TCGA_only_with_0.15val.tar"
-    unet_inferer = Inferer(prev_checkpoint, out_folder="ABCB_TIF_infer")
-    unet_inferer.infer(thumbnails_dir, masks_dir, num_images=10, visulaize=True)
+    # ===== Change here  =====
+    model_name = 'TCGA_only_with_0.15val'
+    test_data = ['Carmel']
+    # ========================
+    test_thumbnails_dir, test_masks_dir = get_datasets_paths(test_data)
+    checkpoint_name = 'TCGA_only_with_0.15val'
+    out_folder = os.path.join("test_inference/", model_name, test_data[0])
+    
+    unet_inferer = Inferer(checkpoint_name, out_folder=out_folder)
+    unet_inferer.infer(test_thumbnails_dir[0], test_masks_dir[0], num_images=50, visulaize=True)
