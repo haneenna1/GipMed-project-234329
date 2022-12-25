@@ -20,3 +20,7 @@ TCGA_infer/
 ABCB_TIF_infer/
 sbatch.out
 test_inference/
+markings/
+markings_segmaps/
+crop_tissue_rois/
+model_checkpoints/

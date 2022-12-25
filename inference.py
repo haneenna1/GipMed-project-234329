@@ -50,10 +50,14 @@ class Inferer:
         self.num_iamges = num_images
         # Subset of the indexes
         full_dir_indices = range(len([path for path in os.listdir(image_dir) if path.endswith(".jpg")]))
+        
+        random.seed(MANUAL_SEED)
         chosen_dir_indices = choices(full_dir_indices, k = num_images)
+        print(f'chosen_dir_indices = {chosen_dir_indices} ')
+        
         # passing transfomrs without any augmentation
         dataset = ThumbnailsDataset(image_dirs= [image_dir], mask_dirs=[mask_dir], indices=chosen_dir_indices, transform=self.inference_transforms)
-        dataloader = DataLoader(dataset, batch_size=1, num_workers=NUM_WORKERS,pin_memory=PIN_MEMPRY) 
+        dataloader = DataLoader(dataset, batch_size=1, pin_memory=PIN_MEMPRY, shuffle = False, num_workers=0) 
         
         self.model.eval()
         with torch.no_grad():
@@ -127,29 +131,29 @@ class Inferer:
         
         sharp_visulaize_path = f"{REAL_PATH(self.out_folder)}/img_{index}_sharp_visulaize.jpg"
         
-        #add legend
-        cv2.rectangle(img, (20, 20), (500, 250), (200, 200, 200), -1)
+        # #add legend
+        # cv2.rectangle(img, (20, 20), (500, 250), (200, 200, 200), -1)
         
-        position = (60, 60)
-        text = "Predicted by Unet only"
-        color = (0, 255, 0)
+        # position = (60, 60)
+        # text = "Predicted by Unet only"
+        # color = (0, 255, 0)
 
-        cv2.rectangle(img, (position[0]-40, position[1]-30), (position[0], position[1] + 20), color, -1)
-        cv2.putText(img, text, position, cv2.FONT_HERSHEY_TRIPLEX, 1, (255, 255, 255), 2)
+        # cv2.rectangle(img, (position[0]-40, position[1]-30), (position[0], position[1] + 20), color, -1)
+        # cv2.putText(img, text, position, cv2.FONT_HERSHEY_TRIPLEX, 1, (255, 255, 255), 2)
 
-        position = (60, 120)
-        text = "Predictedf by OTSU only"
-        color = (255, 0, 0)
+        # position = (60, 120)
+        # text = "Predictedf by OTSU only"
+        # color = (255, 0, 0)
         
-        cv2.rectangle(img, (position[0]-40, position[1]-30), (position[0], position[1] + 20), color, -1)
-        cv2.putText(img, text, position, cv2.FONT_HERSHEY_TRIPLEX, 1, (255, 255, 255), 2)        
+        # cv2.rectangle(img, (position[0]-40, position[1]-30), (position[0], position[1] + 20), color, -1)
+        # cv2.putText(img, text, position, cv2.FONT_HERSHEY_TRIPLEX, 1, (255, 255, 255), 2)        
 
-        position = (60, 180)
-        text = "Predicted by Both"
-        color = (0, 0, 255)
+        # position = (60, 180)
+        # text = "Predicted by Both"
+        # color = (0, 0, 255)
         
-        cv2.rectangle(img, (position[0]-40, position[1]-30), (position[0], position[1] + 20), color, -1)
-        cv2.putText(img, text, position, cv2.FONT_HERSHEY_TRIPLEX, 1, (255, 255, 255), 2)
+        # cv2.rectangle(img, (position[0]-40, position[1]-30), (position[0], position[1] + 20), color, -1)
+        # cv2.putText(img, text, position, cv2.FONT_HERSHEY_TRIPLEX, 1, (255, 255, 255), 2)
         
         
         
@@ -167,8 +171,16 @@ class Inferer:
 
 
 if __name__ == "__main__": 
-    thumbnails_dir = "/mnt/gipmed_new/Data/Lung/TCGA_lung/TCGA_LUNG/SegData/Thumbs"
-    masks_dir = "/mnt/gipmed_new/Data/Lung/TCGA_lung/TCGA_LUNG/SegData/SegMaps"
-    prev_checkpoint = "my_checkpoint.pth.tar"
-    unet_inferer = Inferer(prev_checkpoint, out_folder="TCGA_LUNG_infer")
-    unet_inferer.infer(thumbnails_dir, masks_dir, num_images=100, visulaize=True)
+    # ===== Change here  =====
+    model_name = 'TCG_added_markings'
+    checkpoint_name = 'TCG_added_markings'
+    test_data = ['Carmel']
+    # model_name = 'TCG'
+    # checkpoint_name = 'TCG'
+    # test_data = ['Carmel']
+    # ========================
+    test_thumbnails_dir, test_masks_dir = get_datasets_paths(test_data)
+    out_folder = os.path.join("test_inference/", model_name, test_data[0])
+    
+    unet_inferer = Inferer(checkpoint_name, out_folder=out_folder)
+    unet_inferer.infer(test_thumbnails_dir[0], test_masks_dir[0], num_images=50, visulaize=True)

@@ -18,11 +18,14 @@ class ThumbnailsDataset(Dataset):
         self.masks = []
         for img_dir, mask_dir in zip(image_dirs,mask_dirs):
             # There is some thumbs without mask, no need for them
-            images_set = set([ image.replace("_thumb.jpg","") for image in os.listdir(img_dir) if image.endswith(".jpg")])
-            masks_set =  set([ mask.replace("_SegMap.png","") for mask in os.listdir(mask_dir) if mask.endswith(".png")])
-            files_names = images_set.intersection(masks_set)
-            self.images += [os.path.join(img_dir, image+ "_thumb.jpg") for image in files_names]
-            self.masks += [os.path.join(mask_dir, mask + "_SegMap.png") for mask in files_names]
+            thumbs_names = [ image.replace("_thumb.jpg","") for image in os.listdir(img_dir) if image.endswith(".jpg")]
+            masks_names =  [ mask.replace("_SegMap.png","") for mask in os.listdir(mask_dir) if mask.endswith(".png")]
+            
+            valid_img_names = [name for name in thumbs_names if name in masks_names]
+            
+            self.images += [os.path.join(img_dir, valid_img_names+ "_thumb.jpg") for valid_img_names in valid_img_names]
+            self.masks += [os.path.join(mask_dir, valid_img_names + "_SegMap.png") for valid_img_names in valid_img_names]
+            
         self.indices = indices
         self.visualize_aug = visualize_aug
 
