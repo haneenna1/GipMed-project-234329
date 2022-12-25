@@ -167,13 +167,8 @@ class Inferer:
 
 
 if __name__ == "__main__": 
-    # ===== Change here  =====
-    model_name = 'TCGA_only_with_0.15val'
-    test_data = ['Carmel']
-    # ========================
-    test_thumbnails_dir, test_masks_dir = get_datasets_paths(test_data)
-    checkpoint_name = 'TCGA_only_with_0.15val'
-    out_folder = os.path.join("test_inference/", model_name, test_data[0])
-    
-    unet_inferer = Inferer(checkpoint_name, out_folder=out_folder)
-    unet_inferer.infer(test_thumbnails_dir[0], test_masks_dir[0], num_images=50, visulaize=True)
+    thumbnails_dir = "/mnt/gipmed_new/Data/Lung/TCGA_lung/TCGA_LUNG/SegData/Thumbs"
+    masks_dir = "/mnt/gipmed_new/Data/Lung/TCGA_lung/TCGA_LUNG/SegData/SegMaps"
+    prev_checkpoint = "my_checkpoint.pth.tar"
+    unet_inferer = Inferer(prev_checkpoint, out_folder="TCGA_LUNG_infer")
+    unet_inferer.infer(thumbnails_dir, masks_dir, num_images=100, visulaize=True)

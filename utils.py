@@ -12,13 +12,13 @@ from cmath import inf
 BATCH_SIZE = 10
 
 
-def REAL_PATH(path):
-    #changing to hardcoded path
-    return os.path.join("/home/haneenna/GipMed-project-234329", path)
-
 # def REAL_PATH(path):
 #     #changing to hardcoded path
-#     return os.path.join("/home/amir.bishara/workspace/project/final_repo/GipMed-project-234329", path)
+#     return os.path.join("/home/haneenna/GipMed-project-234329", path)
+
+def REAL_PATH(path):
+    #changing to hardcoded path
+    return os.path.join("/home/amir.bishara/workspace/project/final_repo/GipMed-project-234329", path)
 
 
 def save_checkpoint(state, checkpoint="my_checkpoint"):# you give inly the name of the checkpoint. this function cares for the exact path + extension  
