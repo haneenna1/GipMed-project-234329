@@ -1,11 +1,12 @@
 
 from operator import mod
 import torch
-from torch.utils.tensorboard import SummaryWriter
+import torch.utils.tensorboard as tb
 import os
 import sys
 from tqdm import tqdm
-from utils import save_checkpoint, load_checkpoint, save_validations
+# from utils import save_checkpoint, load_checkpoint, save_validations
+import utils
 from train_results_classes import BatchResult, EpochResult, FitResult
 
 from torchmetrics.classification import BinaryAccuracy
@@ -23,15 +24,15 @@ class Trainer:
         accuracy_metric = BinaryAccuracy(), 
         dice_metric = Dice(), 
         device = None, 
-        load_model = False
+        load_model = None
     ):
         self.model = model
         self.model_name = model_name
         
 
         self.optimizer = optimizer
-        if load_model:
-            load_checkpoint(self.model, self.optimizer)
+        if load_model is not None:
+            utils.load_checkpoint(self.model, self.optimizer, load_model)
         self.loss_fn = loss_fn
         self.dice_metric = dice_metric
         self.accuracy_metric = accuracy_metric
@@ -45,7 +46,7 @@ class Trainer:
         self.val_cur_batch = 0 
         
         tesnorboard_logs_pth = os.path.join('runs/', model_name)
-        self.writer = SummaryWriter(tesnorboard_logs_pth)
+        self.writer = tb.SummaryWriter(tesnorboard_logs_pth)
         
         if self.device:
             model.to(self.device)
@@ -150,7 +151,7 @@ class Trainer:
         dl_train,
         dl_validation,
         num_epochs: int,
-        early_stopping: int = 5,
+        early_stopping = None,
         save_checkpoint:bool = True, 
         print_every: int = 1,
         **kw,
@@ -166,20 +167,27 @@ class Trainer:
             print(f'------------ epoch #{epoch} ------------ ')
 
             train_epoch_result = self.train_epoch(dl_train)
-            val_epoch_result = self.validation_epoch(dl_validation)
-            
             train_acc.append(train_epoch_result.pixel_accuracy)            
             train_loss.append(train_epoch_result.loss.item())
-            test_acc.append(val_epoch_result.pixel_accuracy)
-            test_loss.append(val_epoch_result.loss.item())
+            
+            if(dl_validation): #if we want to validate during fitting
+                val_epoch_result = self.validation_epoch(dl_validation)
+                test_acc.append(val_epoch_result.pixel_accuracy)
+                test_loss.append(val_epoch_result.loss.item())
 
-            self.writer.add_scalar('Loss/train_Epoch', train_epoch_result.loss.item(), epoch)
-            self.writer.add_scalar('Loss/validation_Epoch', val_epoch_result.loss.item(), epoch)
-            self.writer.add_scalar('Accuracy/train_Epoch', train_epoch_result.pixel_accuracy.item(), epoch)
-            self.writer.add_scalar('Accuracy/validation_Epoch', val_epoch_result.pixel_accuracy.item(),  epoch)
-            self.writer.add_scalar('Dice_Score/train_Epoch',train_epoch_result.dice_score.item(), epoch)
-            self.writer.add_scalar('Dice_Score/validation_Epoch', val_epoch_result.dice_score.item(), epoch)
-
+                self.writer.add_scalars('Loss',  {'train':train_epoch_result.loss.item(),'validation': val_epoch_result.loss.item()}, epoch)
+                self.writer.add_scalars('Accuracy', {'train': train_epoch_result.pixel_accuracy.item(), 'validation':val_epoch_result.pixel_accuracy.item() },  epoch)
+                self.writer.add_scalars('Dice_Score', {'train':train_epoch_result.dice_score.item(), 'validation': val_epoch_result.dice_score.item() },  epoch)
+            
+            
+            else:
+                self.writer.add_scalars('Loss',  {'train':train_epoch_result.loss.item()}, epoch)
+                self.writer.add_scalars('Accuracy', {'train': train_epoch_result.pixel_accuracy.item()},  epoch)
+                self.writer.add_scalars('Dice_Score', {'train':train_epoch_result.dice_score.item()},  epoch)
+                
+            self.writer.flush()
+            if early_stopping is None:
+                continue
 
             # early stopping 
             if best_dice_score is None or val_epoch_result.dice_score > best_dice_score:
@@ -190,9 +198,9 @@ class Trainer:
                 if save_checkpoint != None:
                     model_checkpoint = {'model': self.model.state_dict(), 'optimizer': self.optimizer.state_dict()}
                     checkpoint_name = self.model_name
-                    save_checkpoint(model_checkpoint, checkpoint_name)
+                    utils.save_checkpoint(model_checkpoint, checkpoint_name)
                 # print some examples to a folder
-                save_validations(
+                utils.save_validations(
                     dl_validation, self.model, inference_method=self.validation_method, device=self.device, 
                 )
             else:
@@ -200,7 +208,6 @@ class Trainer:
                 if (early_stopping is not None) and epochs_without_improvement > early_stopping:
                     break
 
-            self.writer.flush()
         self.writer.close()
         return FitResult(actual_num_epochs, train_loss, train_acc, test_loss, test_acc)
 

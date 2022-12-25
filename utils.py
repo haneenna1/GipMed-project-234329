@@ -6,10 +6,12 @@ import torchvision
 from torch.utils.data import DataLoader
 from data import ThumbnailsDataset
 import sklearn.model_selection
+import PIL
 from PIL.Image import Image
-from cmath import inf
+import numpy as np
 
 BATCH_SIZE = 10
+MANUAL_SEED = 42
 
 
 # def REAL_PATH(path):
@@ -88,8 +90,6 @@ def get_data_loaders(img_dirs:list, mask_dirs:list, train_transforms = None, val
     pin_memory
     """
    
-    MANUAL_SEED = 42
-
     total_images = 0
     for img_dir, mask_dir in zip(img_dirs,mask_dirs):
         images_set = set([ image.replace("_thumb.jpg","") for image in os.listdir(img_dir) if image.endswith(".jpg")])
@@ -105,22 +105,21 @@ def get_data_loaders(img_dirs:list, mask_dirs:list, train_transforms = None, val
         random.seed(MANUAL_SEED)
         chosen_dir_indices = random.choices(full_dir_indices, k = data_size)
 
-    train_indices, val_indices = sklearn.model_selection.train_test_split(chosen_dir_indices, test_size = validation_ratio, random_state = MANUAL_SEED )
     
-    print(f"Creating dataloaders for the datasets: {img_dirs}. Train size: {len(train_indices)} images, Validation size: {len(val_indices)} images")
     
-    train_set = ThumbnailsDataset(img_dirs, mask_dirs, train_indices, transform= train_transforms)
+    train_indices = chosen_dir_indices
     
-    trainLoader = DataLoader(dataset=train_set, batch_size=train_batch_size, shuffle=True, num_workers=num_workers,
-                            pin_memory=pin_memory)
-    
-    validation_set, validationLoader = None, None
-    
+    val_indices, validationLoader = [], None
     if validation_ratio > 0 :
+        train_indices, val_indices = sklearn.model_selection.train_test_split(chosen_dir_indices, test_size = validation_ratio, random_state = MANUAL_SEED )
         validation_set =  ThumbnailsDataset(img_dirs, mask_dirs, val_indices, transform=val_transforms)
         validationLoader = DataLoader(dataset=validation_set, batch_size=validation_batch_size , shuffle=True, num_workers=num_workers,
                                 pin_memory=pin_memory)
     
+    train_set = ThumbnailsDataset(img_dirs, mask_dirs, train_indices, transform= train_transforms)
+    trainLoader = DataLoader(dataset=train_set, batch_size=train_batch_size, shuffle=True, num_workers=num_workers, pin_memory=pin_memory)
+    
+    print(f"Creating dataloaders for the datasets: {img_dirs}. Train size: {len(train_indices)} images, Validation size: {len(val_indices)} images")
     
     return trainLoader, validationLoader
 
@@ -212,3 +211,38 @@ def get_datasets_paths(datasets:list):
             mask_dirs.append(os.path.join(basePath, dataset, "bliss_data/01-011/HE/TMA_HE_01-011",
                                           "SegData", "SegMaps"))
     return image_dirs, mask_dirs
+
+
+
+########### These helped for building the markings dataset, don't use 
+
+# def create_empty_masks_for_markings(): 
+#     markings_dir = '/home/haneenna/GipMed-project-234329/markings'
+    
+#     imgs = [ f for f in os.listdir(markings_dir) if f.endswith(".jpg") ]
+    
+#     for img_pth in imgs: 
+#         img_fl_pth = os.path.join('/home/haneenna/GipMed-project-234329/markings', img_pth )
+#         print(img_fl_pth)
+#         image = np.array(PIL.Image.open(img_fl_pth).convert("1"))
+#         np_mask = np.zeros_like(image)
+        
+#         mask_img = PIL.Image.fromarray(np_mask)
+#         mask_img.save(img_fl_pth.replace("_thumb.jpg", "_SegMap.png"))
+
+# def duplicate_100(): 
+#     markings_dir = '/home/haneenna/GipMed-project-234329/markings'
+#     imgs = [ f for f in os.listdir(markings_dir) if f.endswith(".jpg") ]
+#     markings_seg_dir = '/home/haneenna/GipMed-project-234329/markings_segmaps'
+#     segs = [ f for f in os.listdir(markings_seg_dir) if f.endswith(".png") ]
+    
+#     for img_pth, seg_pth in zip(imgs, segs): 
+#         for i in range(50):
+#             img_fl_pth = os.path.join('/home/haneenna/GipMed-project-234329/markings', img_pth )
+#             seg_fl_pth = os.path.join('/home/haneenna/GipMed-project-234329/markings_segmaps', seg_pth )
+#             image = PIL.Image.open(img_fl_pth)
+#             seg = PIL.Image.open(seg_fl_pth)
+            
+#             image.save(img_fl_pth.replace("_thumb.jpg", f"_{i}_thumb.jpg"))
+#             seg.save(seg_fl_pth.replace("_SegMap.png", f"_{i}_SegMap.png"))
+        
