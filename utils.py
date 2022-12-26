@@ -14,13 +14,13 @@ BATCH_SIZE = 10
 MANUAL_SEED = 42
 
 
-# def REAL_PATH(path):
-#     #changing to hardcoded path
-#     return os.path.join("/home/haneenna/GipMed-project-234329", path)
-
 def REAL_PATH(path):
     #changing to hardcoded path
-    return os.path.join("/home/amir.bishara/workspace/project/final_repo/GipMed-project-234329", path)
+    return os.path.join("/home/haneenna/GipMed-project-234329", path)
+
+# def REAL_PATH(path):
+#     #changing to hardcoded path
+#     return os.path.join("/home/amir.bishara/workspace/project/final_repo/GipMed-project-234329", path)
 
 
 def save_checkpoint(state, checkpoint="my_checkpoint"):# you give inly the name of the checkpoint. this function cares for the exact path + extension  
@@ -38,10 +38,6 @@ def load_checkpoint(model, optimizer = None, checkpoint_name="my_checkpoint"): #
     model.load_state_dict(checkpoint["model"])
     if optimizer:
         optimizer.load_state_dict(checkpoint["optimizer"])
-
-def save_layered_predictions(img_path, maks_path, index,  mode = 'ground',folder = 'layered_preds'):
-    pass
-
 
 def save_validations(loader, model, inference_method, num_batches_for_save = 10, pred_folder="saved_predictions", layers_folder = 'layered_preds' ,device="cuda"):
     clear_folder(pred_folder)
@@ -74,10 +70,10 @@ def save_data_set(loader, folder_name="train_set"):
     for idx, (x, y) in enumerate(loader):
         torchvision.utils.save_image(x, f"{REAL_PATH(folder_name)}/img_sample_{idx}.jpg")
         torchvision.utils.save_image(y.unsqueeze(1), f"{REAL_PATH(folder_name)}/img_sample_mask{idx}.png")
-
+    
 
 def get_data_loaders(img_dirs:list, mask_dirs:list, train_transforms = None, val_transforms = None, data_size = 'all',  validation_ratio = 0.15, train_batch_size = 3, validation_batch_size = 1, num_workers = 2,
-                 pin_memory = False):
+                 pin_memory = False, shuffle = True, save_datasets = False):
     """
     returns train and validation data loaders
     Args:
@@ -113,13 +109,17 @@ def get_data_loaders(img_dirs:list, mask_dirs:list, train_transforms = None, val
     if validation_ratio > 0 :
         train_indices, val_indices = sklearn.model_selection.train_test_split(chosen_dir_indices, test_size = validation_ratio, random_state = MANUAL_SEED )
         validation_set =  ThumbnailsDataset(img_dirs, mask_dirs, val_indices, transform=val_transforms)
-        validationLoader = DataLoader(dataset=validation_set, batch_size=validation_batch_size , shuffle=True, num_workers=num_workers,
-                                pin_memory=pin_memory)
+        validationLoader = DataLoader(dataset=validation_set, batch_size=validation_batch_size , num_workers=num_workers,
+                                pin_memory=pin_memory, shuffle = shuffle)
     
     train_set = ThumbnailsDataset(img_dirs, mask_dirs, train_indices, transform= train_transforms)
-    trainLoader = DataLoader(dataset=train_set, batch_size=train_batch_size, shuffle=True, num_workers=num_workers, pin_memory=pin_memory)
+    trainLoader = DataLoader(dataset=train_set, batch_size=train_batch_size, num_workers=num_workers, pin_memory=pin_memory, shuffle = shuffle)
     
     print(f"Creating dataloaders for the datasets: {img_dirs}. Train size: {len(train_indices)} images, Validation size: {len(val_indices)} images")
+    
+    if save_datasets: 
+        save_data_set(trainLoader, 'train_set')
+        save_data_set(validationLoader, 'validation_set')
     
     return trainLoader, validationLoader
 
@@ -154,7 +154,7 @@ def clear_folder(dir):
 
 def get_datasets_paths(datasets:list):
     datasetsNames = ["ABCTB_TIF", "Carmel", "Covilha", "Haemek",
-                     "HEROHE", "Ipatimup", "Sheba", "TCGA", "TMA"]
+                     "HEROHE", "Ipatimup", "Sheba", "TCGA", "TMA", "Markings"]
     assert len(set(datasets).intersection(set(datasetsNames))) == min(len(datasetsNames),len(datasets))
     image_dirs = []
     mask_dirs = []
@@ -182,10 +182,10 @@ def get_datasets_paths(datasets:list):
                                               "Batch_" + str(counter), "CARMEL" + str(counter),
                                               "SegData", "SegMaps"))
             for counter in range(1, 5):
-                image_dirs.append(os.path.join(basePath, dataset, "BENIGN",
+                image_dirs.append(os.path.join(basePath, dataset, "Benign",
                                                "Batch_" + str(counter), "BENIGN" + str(counter),
                                                "SegData", "Thumbs"))
-                mask_dirs.append(os.path.join(basePath, dataset, "BENIGN",
+                mask_dirs.append(os.path.join(basePath, dataset, "Benign",
                                               "Batch_" + str(counter), "BENIGN" + str(counter),
                                               "SegData", "SegMaps"))
         if dataset == "Sheba":
@@ -210,7 +210,12 @@ def get_datasets_paths(datasets:list):
                                            "SegData", "Thumbs"))
             mask_dirs.append(os.path.join(basePath, dataset, "bliss_data/01-011/HE/TMA_HE_01-011",
                                           "SegData", "SegMaps"))
+        if dataset == "Markings": # the dataset that contains only markings(annotations) with balck masks
+            image_dirs.append("/home/haneenna/GipMed-project-234329/Markings/markings")
+            mask_dirs.append("/home/haneenna/GipMed-project-234329/Markings/markings_segmaps")
+            
     return image_dirs, mask_dirs
+
 
 
 

@@ -6,13 +6,15 @@ from data import IMAGE_HEIGHT,IMAGE_WIDTH
 
 class DoubleConv(nn.Module):
 
-    def __init__(self, input_channels, output_channels):
+    def __init__(self, input_channels, output_channels, dropout= 0.2):
         super(DoubleConv, self).__init__()
         self.conv = nn.Sequential(
             nn.Conv2d(input_channels, output_channels, kernel_size=3, stride=1, padding='same'),
             nn.ReLU(inplace=True),
+            nn.Dropout2d(p=dropout),
             nn.Conv2d(output_channels, output_channels, kernel_size=3, stride=1, padding='same'),
             nn.ReLU(inplace=True),
+            nn.Dropout2d(p=dropout),
         )
 
     def forward(self, X):
