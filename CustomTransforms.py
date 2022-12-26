@@ -16,7 +16,9 @@ from albumentations.pytorch import ToTensorV2
 class CropTissueRoi(object):
 
     def __call__(self, image, mask):
-        
+        # if empty mask
+        if mask.eq(0).all(): 
+            return {'image': image, 'mask': mask}
         validation_rois = masks_to_boxes(mask.unsqueeze(0))
         
         x_min = torch.min(validation_rois[:, 0])

@@ -31,33 +31,13 @@ class Inferer:
         if checkpoint_name != None:
             load_checkpoint(self.model, checkpoint_name= checkpoint_name)
 
-        self.inference_transforms = A.Compose(
-        [
-            A.Normalize(
-                mean=[0.0, 0.0, 0.0],
-                std=[1.0, 1.0, 1.0],
-                max_pixel_value=255.0,
-            ),
-            ToTensorV2(),
-        ],
-        )
+        
 
         self.accuracies_list = []
         self.dice_scores_list = []
         self.jacard_index_list = []
 
-    def infer(self,image_dir ,mask_dir, num_images=10, visulaize =True)->None:
-        self.num_iamges = num_images
-        # Subset of the indexes
-        full_dir_indices = range(len([path for path in os.listdir(image_dir) if path.endswith(".jpg")]))
-        
-        random.seed(MANUAL_SEED)
-        chosen_dir_indices = choices(full_dir_indices, k = num_images)
-        print(f'chosen_dir_indices = {chosen_dir_indices} ')
-        
-        # passing transfomrs without any augmentation
-        dataset = ThumbnailsDataset(image_dirs= [image_dir], mask_dirs=[mask_dir], indices=chosen_dir_indices, transform=self.inference_transforms)
-        dataloader = DataLoader(dataset, batch_size=1, pin_memory=PIN_MEMPRY, shuffle = False, num_workers=0) 
+    def infer(self, dataloader, visulaize =True)->None:
         
         self.model.eval()
         with torch.no_grad():
@@ -172,15 +152,36 @@ class Inferer:
 
 if __name__ == "__main__": 
     # ===== Change here  =====
-    model_name = 'TCG_added_markings'
-    checkpoint_name = 'TCG_added_markings'
-    test_data = ['Carmel']
+ 
+    # model_name = 'TCG'
+    # model_name = 'TCG_WITH_MRK'
+    model_name = 'TCG_ABC_emk_Iptmp'
+    
+    # checkpoint_name = 'TCG'
+    # checkpoint_name = 'TCG_WITH_MRK'
+    checkpoint_name = 'TCG_ABC_emk_Iptmp'
+    
+    # test_data = ['Carmel']
     # model_name = 'TCG'
     # checkpoint_name = 'TCG'
     # test_data = ['Carmel']
     # ========================
-    test_thumbnails_dir, test_masks_dir = get_datasets_paths(test_data)
-    out_folder = os.path.join("test_inference/", model_name, test_data[0])
+    inference_transforms = [
+            A.Compose([
+                A.Normalize(
+                    mean=[0.0, 0.0, 0.0],
+                    std=[1.0, 1.0, 1.0],
+                    max_pixel_value=255.0,
+                ),
+                ToTensorV2(),
+            ])
+        ]
+    
+    # test_thumbnails_dir, test_masks_dir = get_datasets_paths(test_data)
+    test_thumbnails_dir, test_masks_dir = ['/home/haneenna/GipMed-project-234329/carmel_for_comparison/thumbs'], ['/home/haneenna/GipMed-project-234329/carmel_for_comparison/SegMaps']
+    
+    dataloader, _ = get_data_loaders(test_thumbnails_dir, test_masks_dir, inference_transforms, val_transforms= None, validation_ratio=0, data_size = 1, num_workers= 0, train_batch_size= 1, shuffle=False  ) 
+    out_folder = os.path.join("test_inference/", model_name, 'carmel_for_comparison')
     
     unet_inferer = Inferer(checkpoint_name, out_folder=out_folder)
-    unet_inferer.infer(test_thumbnails_dir[0], test_masks_dir[0], num_images=50, visulaize=True)
+    unet_inferer.infer(dataloader, visulaize=True)
