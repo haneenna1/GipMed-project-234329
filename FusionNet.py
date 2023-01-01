@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
-
+from monai.inferers import sliding_window_inference
+from data import IMAGE_HEIGHT,IMAGE_WIDTH
 
 class Conv_BatchNormalizattion(nn.Module):
 
@@ -21,8 +22,8 @@ class Residual(nn.Module):
         super(Residual, self).__init__()
         self.Residual = nn.Sequential(
             Conv_BatchNormalizattion(input_channels=input_channels, output_channels=output_channels),
-            Conv_BatchNormalizattion(input_channels=input_channels, output_channels=output_channels),
-            Conv_BatchNormalizattion(input_channels=input_channels, output_channels=output_channels)
+            Conv_BatchNormalizattion(input_channels=output_channels, output_channels=output_channels),
+            Conv_BatchNormalizattion(input_channels=output_channels, output_channels=output_channels)
         )
 
     def forward(self, X):
@@ -31,11 +32,11 @@ class Residual(nn.Module):
 class Conv_Resdiual_Conv(nn.Module):
 
     def __init__(self, input_channels, output_channels):
-        super(Residual, self).__init__()
+        super(Conv_Resdiual_Conv, self).__init__()
         self.conv_res_conv = nn.Sequential(
             Conv_BatchNormalizattion(input_channels=input_channels, output_channels=output_channels),
-            Residual(input_channels=input_channels, output_channels=output_channels),
-            Conv_BatchNormalizattion(input_channels=input_channels, output_channels=output_channels)
+            Residual(input_channels=output_channels, output_channels=output_channels),
+            Conv_BatchNormalizattion(input_channels=output_channels, output_channels=output_channels)
         )
 
     def forward(self, X):
@@ -44,9 +45,9 @@ class Conv_Resdiual_Conv(nn.Module):
 class DeConv_BatchNormalizattion(nn.Module):
 
     def __init__(self, input_channels, output_channels):
-        super(Conv_BatchNormalizattion, self).__init__()
+        super(DeConv_BatchNormalizattion, self).__init__()
         self.conv = nn.Sequential(
-            nn.ConvTranspose2d(input_channels,output_channels, kernel_size=3, stride=1, padding='same'),
+            nn.ConvTranspose2d(input_channels,output_channels, 2, 2),
             nn.BatchNorm2d(output_channels),
             nn.ReLU(inplace=True)
         )
@@ -54,10 +55,10 @@ class DeConv_BatchNormalizattion(nn.Module):
     def forward(self, X):
         return self.conv(X)
 
-class Fusionnet(nn.Module):
+class FusionNet(nn.Module):
 
     def __init__(self, in_channels=3, out_channels=2, layers_num_channels=[64, 128, 256, 512]):
-        super(Fusionnet, self).__init__()
+        super(FusionNet, self).__init__()
         self.down = nn.ModuleList()
         self.up = nn.ModuleList()
         self.out_channels = out_channels
@@ -75,10 +76,10 @@ class Fusionnet(nn.Module):
             self.up.extend([
                 # there were two args of 2,2
                 DeConv_BatchNormalizattion(num_channels * 2, num_channels),
-                Conv_Resdiual_Conv(in_channels, num_channels)
+                Conv_Resdiual_Conv(num_channels , num_channels)
             ])
 
-        self.final_layer = Conv_BatchNormalizattion(layers_num_channels[0], out_channels, kernel_size=1)
+        self.final_layer = nn.Conv2d(layers_num_channels[0], out_channels, kernel_size=1)
 
         # pooling layer we're going to use
         self.pool = nn.MaxPool2d(2, 2)
@@ -117,3 +118,31 @@ class Fusionnet(nn.Module):
             x = self.up[index + 1](merge_x)
 
         return self.final_layer(x)
+
+    def predict_labels(self,pred_scores):
+        '''
+            given class raw scores (un normalized) -> returns per pixel classification
+        '''
+        with torch.no_grad():
+            if self.out_channels == 1:
+                pred_proba = nn.Sigmoid()(pred_scores)
+                pred_labels = (pred_proba > 0.5).float()
+            else : 
+                pred_proba = nn.Softmax(dim = 1)(pred_scores)
+                pred_labels = torch.argmax(pred_proba, dim = 1).unsqueeze(1)
+
+        return pred_labels
+
+
+
+    def sliding_window_validation(self, img_batch, mask_batch = None, verbose = False):
+        """
+            mask_batch is none if this is a test image without a ground truth mask. 
+            mask_batch is not none if this is a validation image with a ground truth mask. 
+            
+        """
+        
+        roi_size = (IMAGE_HEIGHT, IMAGE_WIDTH)
+        sw_batch_size = img_batch.shape[0]
+        per_pixel_score_predictions = sliding_window_inference(img_batch, roi_size, sw_batch_size, self, overlap=0, progress=verbose)
+        return per_pixel_score_predictions

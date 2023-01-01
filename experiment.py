@@ -12,7 +12,7 @@ import CustomTransforms as C
 from trainer import Trainer
 
 from Unet import Unet
-from Fusionnet import Fusionnet
+from FusionNet import FusionNet
 # For reading huge images
 import PIL.Image
 PIL.Image.MAX_IMAGE_PIXELS = None
@@ -26,7 +26,7 @@ MANUAL_SEED = 42
 
 MODELS = {
     'unet': Unet, 
-    'fusionnet': Fusionnet   
+    'fusionnet': FusionNet   
 }
 
 def experiment(
