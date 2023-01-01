@@ -5,6 +5,7 @@ import os
 from random import choices
 import numpy as np
 import cv2
+import argparse
 
 import PIL.Image
 PIL.Image.MAX_IMAGE_PIXELS = None
@@ -13,11 +14,12 @@ from albumentations.pytorch import ToTensorV2
 from torchmetrics.classification import BinaryAccuracy
 from torchmetrics import Dice, JaccardIndex
 
-from experiment import NUM_WORKERS,PIN_MEMPRY,DEVICE
 from Unet import Unet
 from data import ThumbnailsDataset
 from utils import *
 
+DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
+print(f'******************** device you are using is : {DEVICE}')
 class Inferer:
 
     def __init__(self, checkpoint_name = None, model = Unet(in_channels=3, out_channels=1).to(DEVICE), out_folder = "inference_output") -> None:
@@ -151,18 +153,28 @@ class Inferer:
 
 
 if __name__ == "__main__": 
-    # ===== Change here  =====
- 
-    # model_name = 'TCG'
-    # model_name = 'TCG_WITH_MRK'
-    model_name = 'TCG_WITH_MRK'
+
+    ###########################################################################
+    #  usage: inference.py [-h] [--checkpoint-name CHECKPOINT_NAME]
+    #  [--model-type MODEL_TYPE] [--out-dir OUT_DIR] 
+    #  [--datasets DATASETS [DATASETS ...]] [--data-size DATA_SIZE] 
+    #  [--batch-size BATCH_SIZE] [--num-workers NUM_WORKERS] [--visulaize]
+    #
+    ###########################################################################
+
+    parser = argparse.ArgumentParser()
+        
+    parser.add_argument('--checkpoint-name', type=str)
+    parser.add_argument('--model-type', type=str)
+    parser.add_argument('--out-dir', type=str)
+    parser.add_argument('--datasets', nargs = '+')
+    parser.add_argument('--data-size', type=int)
+    parser.add_argument('--batch-size', type=int, default=5)
+    parser.add_argument('--num-workers', type=int, default=10)
+    parser.add_argument('--visulaize', action='store_true', default=True)
     
-    # checkpoint_name = 'TCG'
-    # checkpoint_name = 'TCG_WITH_MRK'
-    checkpoint_name = 'TCG_WITH_MRK'
-    
-    test_data = ['ABCTB_TIF']
-    # ========================
+    args = parser.parse_args()
+
     inference_transforms = [
             A.Compose([
                 A.Normalize(
@@ -174,11 +186,7 @@ if __name__ == "__main__":
             ])
         ]
     
-    test_thumbnails_dir, test_masks_dir = get_datasets_paths(test_data)
-    # test_thumbnails_dir, test_masks_dir = ['/home/haneenna/GipMed-project-234329/carmel_for_comparison/thumbs'], ['/home/haneenna/GipMed-project-234329/carmel_for_comparison/SegMaps']
-    
-    dataloader, _ = get_data_loaders(test_thumbnails_dir, test_masks_dir, inference_transforms, val_transforms= None, validation_ratio=0, data_size = 1, num_workers= 0, train_batch_size= 1, shuffle=False  ) 
-    out_folder = os.path.join("test_inference/", model_name, 'carmel_for_comparison')
-    
-    unet_inferer = Inferer(checkpoint_name, out_folder=out_folder)
-    unet_inferer.infer(dataloader, visulaize=True)
+    test_thumbnails_dir, test_masks_dir = get_datasets_paths(args.datasets)
+    dataloader, _ = get_data_loaders(test_thumbnails_dir, test_masks_dir, inference_transforms, val_transforms= None, validation_ratio=0, data_size = args.data_size, num_workers= args.num_workers, train_batch_size= args.batch_size, shuffle=False) 
+    unet_inferer = Inferer(args.checkpoint_name, out_folder=args.out_dir)
+    unet_inferer.infer(dataloader, visulaize=args.visualize)
