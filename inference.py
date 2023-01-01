@@ -13,7 +13,7 @@ from albumentations.pytorch import ToTensorV2
 from torchmetrics.classification import BinaryAccuracy
 from torchmetrics import Dice, JaccardIndex
 
-from main import NUM_WORKERS,PIN_MEMPRY,DEVICE
+from experiment import NUM_WORKERS,PIN_MEMPRY,DEVICE
 from Unet import Unet
 from data import ThumbnailsDataset
 from utils import *
@@ -155,16 +155,13 @@ if __name__ == "__main__":
  
     # model_name = 'TCG'
     # model_name = 'TCG_WITH_MRK'
-    model_name = 'TCG_ABC_emk_Iptmp'
+    model_name = 'TCG_WITH_MRK'
     
     # checkpoint_name = 'TCG'
     # checkpoint_name = 'TCG_WITH_MRK'
-    checkpoint_name = 'TCG_ABC_emk_Iptmp'
+    checkpoint_name = 'TCG_WITH_MRK'
     
-    # test_data = ['Carmel']
-    # model_name = 'TCG'
-    # checkpoint_name = 'TCG'
-    # test_data = ['Carmel']
+    test_data = ['ABCTB_TIF']
     # ========================
     inference_transforms = [
             A.Compose([
@@ -177,8 +174,8 @@ if __name__ == "__main__":
             ])
         ]
     
-    # test_thumbnails_dir, test_masks_dir = get_datasets_paths(test_data)
-    test_thumbnails_dir, test_masks_dir = ['/home/haneenna/GipMed-project-234329/carmel_for_comparison/thumbs'], ['/home/haneenna/GipMed-project-234329/carmel_for_comparison/SegMaps']
+    test_thumbnails_dir, test_masks_dir = get_datasets_paths(test_data)
+    # test_thumbnails_dir, test_masks_dir = ['/home/haneenna/GipMed-project-234329/carmel_for_comparison/thumbs'], ['/home/haneenna/GipMed-project-234329/carmel_for_comparison/SegMaps']
     
     dataloader, _ = get_data_loaders(test_thumbnails_dir, test_masks_dir, inference_transforms, val_transforms= None, validation_ratio=0, data_size = 1, num_workers= 0, train_batch_size= 1, shuffle=False  ) 
     out_folder = os.path.join("test_inference/", model_name, 'carmel_for_comparison')
