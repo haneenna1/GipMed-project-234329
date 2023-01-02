@@ -6,8 +6,8 @@ import matplotlib.pyplot as plt
 from torchvision.utils import save_image
 import ntpath
 
-IMAGE_HEIGHT=512
-IMAGE_WIDTH=512
+IMAGE_HEIGHT = 1024
+IMAGE_WIDTH = 1024
 
 class ThumbnailsDataset(Dataset):
     def __init__(self, image_dirs:list, mask_dirs:list, indices,transform=list, visualize_aug = False):

@@ -110,6 +110,6 @@ class Unet(nn.Module):
         
         roi_size = (IMAGE_HEIGHT, IMAGE_WIDTH)
         sw_batch_size = img_batch.shape[0]
-        per_pixel_score_predictions = sliding_window_inference(img_batch, roi_size, sw_batch_size, self, overlap=0, progress=verbose)
+        per_pixel_score_predictions = sliding_window_inference(img_batch, roi_size, sw_batch_size, self,  padding_mode='reflect', overlap=0, progress=verbose)
         return per_pixel_score_predictions
 
