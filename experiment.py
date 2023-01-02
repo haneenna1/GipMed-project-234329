@@ -33,13 +33,14 @@ def experiment(
     model_name, 
     model_type, 
     datasets, 
-    data_size, 
+    data_size = 'all', 
     num_epochs = 50, 
     early_stopping = 5,
     batch_size = 5,
     input_size = 1024, 
     num_workers = 10,
     pin_memory = True,
+    load_model = False,
     
 ):
     
@@ -99,7 +100,7 @@ def experiment(
     train_dl, val_dl = utils.get_data_loaders(image_dirs, mask_dirs, train_transform, val_transform_for_sliding_window,  data_size=data_size, 
                                               train_batch_size=batch_size, num_workers= num_workers, pin_memory= pin_memory)
 
-    trainer = Trainer(model, model_name,optimizer,loss_fn , sliding_window_validation=True, device = device)
+    trainer = Trainer(model, model_name,optimizer,loss_fn , sliding_window_validation=True, device = device, load_model=load_model)
     trainer.fit(train_dl, val_dl,  num_epochs=num_epochs, early_stopping=early_stopping)
   
   
@@ -115,13 +116,14 @@ if __name__ == "__main__":
     parser.add_argument('--model-name', type=str)
     parser.add_argument('--model-type', type=str)
     parser.add_argument('--datasets', nargs = '+')
-    parser.add_argument('--data-size', type=int)
+    parser.add_argument('--data-size', default='all')
     parser.add_argument('--num-epochs', type=int, default=50)
     parser.add_argument('--early-stopping', type=int, default=5)
     parser.add_argument('--batch-size', type=int, default=5)
     parser.add_argument('--input-size', type=int, default=1024)
     parser.add_argument('--num-workers', type=int, default=10)
     parser.add_argument('--pin-memory', action='store_true', default=True)
+    parser.add_argument('--load-model', action='store_true', default=False)
     
     args = parser.parse_args()
     print(args)

@@ -221,33 +221,67 @@ def get_datasets_paths(datasets:list):
 
 ########### These helped for building the markings dataset, don't use 
 
-# def create_empty_masks_for_markings(): 
-#     markings_dir = '/home/haneenna/GipMed-project-234329/markings'
+def create_empty_masks_for_markings(): 
+    markings_dir = 'dup_markings'
+    masks_dir =  'dup_markings_segmaps'
     
-#     imgs = [ f for f in os.listdir(markings_dir) if f.endswith(".jpg") ]
+    imgs = [ f for f in os.listdir(markings_dir) if f.endswith(".jpg") ]
     
-#     for img_pth in imgs: 
-#         img_fl_pth = os.path.join('/home/haneenna/GipMed-project-234329/markings', img_pth )
-#         print(img_fl_pth)
-#         image = np.array(PIL.Image.open(img_fl_pth).convert("1"))
-#         np_mask = np.zeros_like(image)
+    for img_pth in imgs: 
+        img_fl_pth = os.path.join('/home/haneenna/GipMed-project-234329/Markings', markings_dir, img_pth )
+        segmap_fl_pth = os.path.join('/home/haneenna/GipMed-project-234329/Markings', masks_dir , img_pth ).replace("_thumb.jpg", "_SegMap.png")
         
-#         mask_img = PIL.Image.fromarray(np_mask)
-#         mask_img.save(img_fl_pth.replace("_thumb.jpg", "_SegMap.png"))
+        print(img_fl_pth)
+        print(segmap_fl_pth)
+        
+        image = np.array(PIL.Image.open(img_fl_pth).convert("1"))
+        np_mask = np.zeros_like(image)
+        
+        mask_img = PIL.Image.fromarray(np_mask)
+        mask_img.save(segmap_fl_pth)
 
-# def duplicate_100(): 
-#     markings_dir = '/home/haneenna/GipMed-project-234329/markings'
+def duplicate(num_duplicate = 30): 
+    orig_markings_dir = '/home/haneenna/GipMed-project-234329/Markings/original_markings'
+    imgs = [ f for f in os.listdir(orig_markings_dir) if f.endswith(".jpg") ]
+    orig_markings_seg_dir = '/home/haneenna/GipMed-project-234329/Markings/original_segmaps'
+    segs = [ f for f in os.listdir(orig_markings_seg_dir) if f.endswith(".png") ]
+    
+    
+    dup_markings_dir = '/home/haneenna/GipMed-project-234329/Markings/dup_markings'
+    dup_segmaps_dir = '/home/haneenna/GipMed-project-234329/Markings/dup_markings_segmaps'
+    
+    clear_folder(dup_markings_dir)
+    clear_folder(dup_segmaps_dir)
+    
+    for img_pth, seg_pth in zip(imgs, segs): 
+        for i in range(1, num_duplicate+1):
+            img_fl_pth = os.path.join(orig_markings_dir, img_pth )
+            seg_fl_pth = os.path.join(orig_markings_seg_dir, seg_pth )
+
+            dup_img_fl_pth = os.path.join(dup_markings_dir, img_pth ).replace("_thumb.jpg", f"_{i}_thumb.jpg")
+            dup_seg_fl_pth = os.path.join(dup_segmaps_dir, seg_pth ).replace("_SegMap.png", f"_{i}_SegMap.png")
+          
+            image = PIL.Image.open(img_fl_pth)
+            seg = PIL.Image.open(seg_fl_pth)
+            
+            image.save(dup_img_fl_pth)
+            seg.save(dup_seg_fl_pth)
+        
+# def rename():
+#     markings_dir = '/home/haneenna/GipMed-project-234329/Markings/original_markings'
 #     imgs = [ f for f in os.listdir(markings_dir) if f.endswith(".jpg") ]
-#     markings_seg_dir = '/home/haneenna/GipMed-project-234329/markings_segmaps'
+#     markings_seg_dir = '/home/haneenna/GipMed-project-234329/Markings/original_segmaps/'
 #     segs = [ f for f in os.listdir(markings_seg_dir) if f.endswith(".png") ]
     
 #     for img_pth, seg_pth in zip(imgs, segs): 
-#         for i in range(50):
-#             img_fl_pth = os.path.join('/home/haneenna/GipMed-project-234329/markings', img_pth )
-#             seg_fl_pth = os.path.join('/home/haneenna/GipMed-project-234329/markings_segmaps', seg_pth )
-#             image = PIL.Image.open(img_fl_pth)
-#             seg = PIL.Image.open(seg_fl_pth)
-            
-#             image.save(img_fl_pth.replace("_thumb.jpg", f"_{i}_thumb.jpg"))
-#             seg.save(seg_fl_pth.replace("_SegMap.png", f"_{i}_SegMap.png"))
+#         img_fl_pth = os.path.join(markings_dir, img_pth )
+#         seg_fl_pth = os.path.join(markings_seg_dir, seg_pth )
+       
+#         image = PIL.Image.open(img_fl_pth)
+#         seg = PIL.Image.open(seg_fl_pth)
         
+#         image.save(img_fl_pth.replace("_0_thumb.jpg", f"_thumb.jpg"))
+#         seg.save(seg_fl_pth.replace("_0_SegMap.png", f"_SegMap.png"))
+        
+if __name__ == '__main__': 
+    duplicate()
