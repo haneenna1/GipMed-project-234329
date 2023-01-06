@@ -33,14 +33,15 @@ class Conv_Resdiual_Conv(nn.Module):
 
     def __init__(self, input_channels, output_channels):
         super(Conv_Resdiual_Conv, self).__init__()
-        self.conv_res_conv = nn.Sequential(
-            Conv_BatchNormalizattion(input_channels=input_channels, output_channels=output_channels),
-            Residual(input_channels=output_channels, output_channels=output_channels),
-            Conv_BatchNormalizattion(input_channels=output_channels, output_channels=output_channels)
-        )
+        self.first_conv = Conv_BatchNormalizattion(input_channels=input_channels, output_channels=output_channels)
+        self.residual = Residual(input_channels=output_channels, output_channels=output_channels)
+        self.last_conv = Conv_BatchNormalizattion(input_channels=output_channels, output_channels=output_channels)
 
-    def forward(self, X):
-        return self.conv_res_conv(X)
+    def forward(self,x):
+        res_first_conv = self.first_conv(x)
+        res_residual = self.residual(res_first_conv)
+        pixel_wise_added = res_first_conv + res_residual
+        return self.last_conv(pixel_wise_added)
 
 class DeConv_BatchNormalizattion(nn.Module):
 
