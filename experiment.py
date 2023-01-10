@@ -33,7 +33,7 @@ def experiment(
     model_name, 
     model_type, 
     datasets, 
-    data_size = 'all', 
+    data_size = None, 
     num_epochs = 50, 
     early_stopping = 5,
     batch_size = 5,
@@ -46,9 +46,9 @@ def experiment(
     
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print(f'******************** device you are using is : {device}')
-    model = MODELS[model_type](in_channels=3, out_channels=1).to(device)
+    model = MODELS[model_type](in_channels=3, out_channels=3).to(device)
     optimizer = optim.Adam(model.parameters(), lr = LEARNING_RATE)
-    loss_fn = nn.BCEWithLogitsLoss()
+    loss_fn = nn.CrossEntropyLoss()
 
     
     train_transform = [ 
@@ -60,13 +60,14 @@ def experiment(
             A.Rotate(limit=35, p=1.0),
             A.HorizontalFlip(p=0.5),
             A.VerticalFlip(p=0.1),
-            A.Normalize(
-                mean=[0.0, 0.0, 0.0],
-                std=[1.0, 1.0, 1.0],
-                max_pixel_value=255.0,
-            ),
-            ToTensorV2(),
-        ]), 
+        ]),
+        C.AddAnnotation(),
+        A.Normalize(
+            mean=[0.0, 0.0, 0.0],
+            std=[1.0, 1.0, 1.0],
+            max_pixel_value=255.0,
+        ),
+        ToTensorV2(),
     ]
     # should passed when using the centerCrop without sliding window
     val_transform = A.Compose(
@@ -83,6 +84,7 @@ def experiment(
     )
 
     val_transform_for_sliding_window = [
+        A.PadIfNeeded(input_size, input_size),
         A.Compose([
             A.Normalize(
                 mean=[0.0, 0.0, 0.0],
@@ -116,14 +118,14 @@ if __name__ == "__main__":
     parser.add_argument('--model-name', type=str)
     parser.add_argument('--model-type', type=str)
     parser.add_argument('--datasets', nargs = '+')
-    parser.add_argument('--data-size', default='all')
+    parser.add_argument('--data-size', type=int)
     parser.add_argument('--num-epochs', type=int, default=50)
     parser.add_argument('--early-stopping', type=int, default=5)
     parser.add_argument('--batch-size', type=int, default=5)
     parser.add_argument('--input-size', type=int, default=1024)
     parser.add_argument('--num-workers', type=int, default=10)
     parser.add_argument('--pin-memory', action='store_true', default=True)
-    parser.add_argument('--load-model', action='store_true', default=False)
+    parser.add_argument('--load-model', type=str, default=None)
     
     args = parser.parse_args()
     print(args)

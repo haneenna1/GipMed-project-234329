@@ -50,7 +50,7 @@ def save_validations(loader, model, inference_method, num_batches_for_save = 10,
         x = x.to(device=device)
         with torch.no_grad():
             per_pixel_score_predictions = inference_method(x) # TODO: check it??
-            pred_masks = model.predict_labels(per_pixel_score_predictions).float()
+            pred_masks = model.predict_labels_from_scores(per_pixel_score_predictions).float()
 
         img_path = f"{REAL_PATH(pred_folder)}/img_{idx}.jpg"
         predicted_mask_path = f"{REAL_PATH(pred_folder)}/img_{idx}_predicted_mask.jpg"
@@ -72,7 +72,7 @@ def save_data_set(loader, folder_name="train_set"):
         torchvision.utils.save_image(y.unsqueeze(1), f"{REAL_PATH(folder_name)}/img_sample_mask{idx}.png")
     
 
-def get_data_loaders(img_dirs:list, mask_dirs:list, train_transforms = None, val_transforms = None, data_size = 'all',  validation_ratio = 0.15, train_batch_size = 3, validation_batch_size = 1, num_workers = 2,
+def get_data_loaders(img_dirs:list, mask_dirs:list, train_transforms = None, val_transforms = None, data_size = None,  validation_ratio = 0.15, train_batch_size = 3, validation_batch_size = 1, num_workers = 2,
                  pin_memory = False, shuffle = True, save_datasets = False):
     """
     returns train and validation data loaders
@@ -94,7 +94,8 @@ def get_data_loaders(img_dirs:list, mask_dirs:list, train_transforms = None, val
         
     full_dir_indices = range(total_images)
 
-    if data_size == 'all':
+    #train on all data
+    if data_size is None:
         chosen_dir_indices = full_dir_indices
     # We want a subset of the dataset for the train/validation.
     else:
@@ -211,8 +212,8 @@ def get_datasets_paths(datasets:list):
             mask_dirs.append(os.path.join(basePath, dataset, "bliss_data/01-011/HE/TMA_HE_01-011",
                                           "SegData", "SegMaps"))
         if dataset == "Markings": # the dataset that contains only markings(annotations) with balck masks
-            image_dirs.append("/home/haneenna/GipMed-project-234329/Markings/markings")
-            mask_dirs.append("/home/haneenna/GipMed-project-234329/Markings/markings_segmaps")
+            image_dirs.append("/home/haneenna/GipMed-project-234329/Markings/dup_markings")
+            mask_dirs.append("/home/haneenna/GipMed-project-234329/Markings/dup_markings_segmaps")
             
     return image_dirs, mask_dirs
 
@@ -282,6 +283,6 @@ def duplicate(num_duplicate = 30):
         
 #         image.save(img_fl_pth.replace("_0_thumb.jpg", f"_thumb.jpg"))
 #         seg.save(seg_fl_pth.replace("_0_SegMap.png", f"_SegMap.png"))
-        
-if __name__ == '__main__': 
+
+if __name__ == '__main__':
     duplicate()

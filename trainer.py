@@ -9,7 +9,7 @@ from tqdm import tqdm
 import utils
 from train_results_classes import BatchResult, EpochResult, FitResult
 
-from torchmetrics.classification import BinaryAccuracy
+from torchmetrics.classification import MulticlassAccuracy
 from torchmetrics import Dice
 
 
@@ -21,7 +21,7 @@ class Trainer:
         optimizer, 
         loss_fn, 
         sliding_window_validation = True, 
-        accuracy_metric = BinaryAccuracy(), 
+        accuracy_metric = MulticlassAccuracy(num_classes=3), 
         dice_metric = Dice(), 
         device = None, 
         load_model = None
@@ -56,18 +56,18 @@ class Trainer:
     def train_batch(self, batch) -> BatchResult:
         batch_imgs, batch_masks = batch
         batch_imgs = batch_imgs.to(self.device)
-        batch_masks = batch_masks.unsqueeze(1).to(self.device)  # check if need to unsqueeze
+        batch_masks = batch_masks.to(self.device)  # check if need to unsqueeze
 
         # forward
         per_pixel_score_predictions = self.model(batch_imgs)  #per pixel un normalized score
-
-        batch_loss = self.loss_fn(per_pixel_score_predictions, batch_masks)
+   
+        batch_loss = self.loss_fn(per_pixel_score_predictions, batch_masks.long())
         # print(f'train_batch_loss = {batch_loss}')
 
         # accuracy and dice
-        pred_masks = self.model.predict_labels(per_pixel_score_predictions) # per pixel classification
+        pred_masks = self.model.predict_labels_from_scores(per_pixel_score_predictions) # per pixel classification
         dice_score = self.dice_metric(pred_masks, batch_masks.int())
-        pixel_accuracy = self.accuracy_metric(pred_masks, batch_masks)
+        pixel_accuracy = self.accuracy_metric(pred_masks, batch_masks.unsqueeze(dim=1))
 
         # backward
         self.optimizer.zero_grad()
@@ -79,18 +79,17 @@ class Trainer:
     def test_batch(self, batch) -> BatchResult:
         batch_imgs, batch_masks = batch
         batch_imgs = batch_imgs.to(self.device)
-        batch_masks = batch_masks.unsqueeze(1).to(self.device)  # check if need to unsqueeze
-
+        batch_masks = batch_masks.to(self.device)  # check if need to unsqueeze
             # forward
         with torch.no_grad():
 
             per_pixel_score_predictions = self.validation_method(batch_imgs)  #per pixel un normalized score
-            batch_loss = self.loss_fn(per_pixel_score_predictions, batch_masks)
+            batch_loss = self.loss_fn(per_pixel_score_predictions, batch_masks.long())
 
             # accuracy and dice
-            pred_masks = self.model.predict_labels(per_pixel_score_predictions) # per pixel classification
+            pred_masks = self.model.predict_labels_from_scores(per_pixel_score_predictions) # per pixel classification
             dice_score = self.dice_metric(pred_masks, batch_masks.int())
-            pixel_accuracy = self.accuracy_metric(pred_masks, batch_masks)
+            pixel_accuracy = self.accuracy_metric(pred_masks,  batch_masks.unsqueeze(dim=1))
 
         return BatchResult(batch_loss, pixel_accuracy, dice_score)
 

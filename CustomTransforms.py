@@ -1,6 +1,8 @@
 from torchvision.ops import masks_to_boxes
 import torchvision.transforms.functional as TF
 import numpy as np
+import cv2
+import random
 import torch
 import os
 from torchvision.utils import save_image
@@ -37,41 +39,51 @@ class CropTissueRoi(object):
         return {'image': cropped_img, 'mask': cropped_masks}
     
     
+
+class AddAnnotation(object):
+    def __init__(self, p = 0.4):
+        self.p = p
     
-from torchvision.io import read_image
-if __name__ == '__main__':
+    def __call__(self, image, mask):
+        # Determine the size of the output image
+        enable = (1 if random.uniform(0, 1) < self.p else 0)
+        if enable == 0:
+            return {'image': image, 'mask': mask}
+        annotations = os.listdir('Markings/dup_markings/')
+        annotations_seg = os.listdir('Markings/dup_markings_segmaps/')
+        
+        chosen_idx = random.randint(0, len(annotations)-1) 
+        
+        annotation_pth = os.path.join('Markings/dup_markings/', (annotations[chosen_idx]))
+        annotation_seg_pth = os.path.join('Markings/dup_markings_segmaps/', (annotations_seg[chosen_idx]))
+        
+        image2 = np.array(Image.open(annotation_pth).convert("RGB"))
+        mask2 = np.array(Image.open(annotation_seg_pth).convert("1"), dtype=np.uint8)
 
-    val_transform_for_sliding_window = A.Compose([
-            A.Normalize(
-                mean=[0.0, 0.0, 0.0],
-                std=[1.0, 1.0, 1.0],
-                max_pixel_value=255.0,
-            ),
-            ToTensorV2(),
-    ])
-    Cr = CropTissueRoi()
+        
+        rows = image.shape[0]
+        cols = image.shape[1]
+        # Create the output image and mask with the correct size
+        image_out = image
+        mask_out = mask
+        # Resize the second image to fit within the bounds of the first image
+        image2 = cv2.resize(image2, (cols//2, rows//2))
+        mask2 = cv2.resize(mask2, (cols//2, rows//2), interpolation=cv2.INTER_NEAREST)
+        # Overlay the segmented pixels of the second image onto the output image and mask
+        
+        x_offset = random.randint(0, cols - image2.shape[1])
+        y_offset = random.randint(0, rows - image2.shape[0])
+        
+        image_out[y_offset:y_offset+image2.shape[0],
+                x_offset:x_offset+image2.shape[1], :][mask2 > 0]  = image2[mask2 > 0]
+        mask_out[y_offset:y_offset+mask2.shape[0],
+                x_offset:x_offset+mask2.shape[1]][mask2 > 0] = 2
+            
+        # # Create a colormap for the segmentation map
 
-    counter = 1
+        # # Map the values in the segmentation map to colors using the colormap
+        # # Create a NumPy array with values 0, 1, and 2
+        # colors = np.array([[0, 0, 0], [255, 255, 255], [0, 0, 255]])
+        # seg_map_rgb = colors[mask_out]
 
-    HEROHE_imgs_path = os.path.join("/mnt/gipmed_new/Data/Breast/HEROHE/SegData/Thumbs")
-    HEROHE_masks_path = os.path.join("/mnt/gipmed_new/Data/Breast/HEROHE/SegData/SegMaps")
-
-    clear_folder("./crop_validations")
-
-    for index, img in enumerate( os.listdir(HEROHE_imgs_path)):
-        if index >= counter:
-            break
-        image = np.array(Image.open(os.path.join(HEROHE_imgs_path,img)).convert("RGB"))
-        mask = np.array(Image.open(os.path.join(HEROHE_masks_path,img.replace("_thumb.jpg","_SegMap.png"))).convert("1"), dtype=np.float32)
-        aug = val_transform_for_sliding_window(image=image, mask=mask)
-        aug_image = aug['image']
-        aug_mask = aug['mask']
-    
-        cropped_img = Cr(aug_image, aug_mask)['image']
-        cropped_mask = Cr(aug_image, aug_mask)['mask']
-        save_image(aug_image, os.path.join(f"./crop_validations", f"orig_img_{index}.jpg"))
-        save_image(aug_mask, os.path.join(f"./crop_validations", f"orig_mask{index}.png"))
-        save_image(cropped_img, os.path.join(f"./crop_validations", f"cropped_img{index}.jpg"))
-        save_image(cropped_mask, os.path.join(f"./crop_validations", f"cropped_mask{index}.png"))
-
-    
+        return {'image': image_out, 'mask': mask_out}

@@ -85,7 +85,10 @@ class Unet(nn.Module):
 
         return self.final_layer(x)
     
-    def predict_labels(self,pred_scores):
+        
+        
+        
+    def predict_labels_from_scores(self,pred_scores):
         '''
             given class raw scores (un normalized) -> returns per pixel classification
         '''
@@ -99,6 +102,8 @@ class Unet(nn.Module):
 
         return pred_labels
 
+    def predict_mask(self, img_batch): 
+        self.predict_labels_from_scores(self.forward(img_batch))
 
 
     def sliding_window_validation(self, img_batch, mask_batch = None, verbose = False):

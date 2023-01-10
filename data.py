@@ -3,6 +3,8 @@ from PIL import Image
 from torch.utils.data import Dataset
 import numpy as np
 import matplotlib.pyplot as plt
+import torch
+import cv2
 from torchvision.utils import save_image
 import ntpath
 
@@ -10,7 +12,7 @@ IMAGE_HEIGHT = 1024
 IMAGE_WIDTH = 1024
 
 class ThumbnailsDataset(Dataset):
-    def __init__(self, image_dirs:list, mask_dirs:list, indices,transform=list, visualize_aug = False):
+    def __init__(self, image_dirs:list, mask_dirs:list, indices,transform=list, visualize_aug = True):
         self.image_dirs = image_dirs
         self.mask_dirs = mask_dirs
         self.transform = transform
@@ -51,15 +53,22 @@ class ThumbnailsDataset(Dataset):
                 for t in self.transform:
                     augmentations = t(image=image, mask=mask)
                     image = augmentations["image"]
+                    
                     mask = augmentations["mask"]
+                colors = np.array([[0, 0, 0], [255, 255, 255], [0, 0, 255]])
+                mask_rgb = colors[mask.int()]
             #one transform
             else:
                 augmentations = self.transform(image=image, mask=mask)
                 image = augmentations["image"]
+                
+                colors = np.array([[0, 0, 0], [255, 255, 255], [0, 0, 255]])
                 mask = augmentations["mask"]
+                mask_rgb = colors[mask.int()]
         if self.visualize_aug:
             aug_img_name = ntpath.basename(img_path).replace("_thumb", "_aug")
             save_image(image, os.path.join('./augmented_imgs', aug_img_name))
+            cv2.imwrite(os.path.join('./augmented_imgs', 'seg_' + aug_img_name), mask_rgb)
 
         return image, mask
 
