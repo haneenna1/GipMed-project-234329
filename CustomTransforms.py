@@ -41,35 +41,42 @@ class CropTissueRoi(object):
     
 
 class AddAnnotation(object):
-    def __init__(self, p = 0.4):
+    def __init__(self, p = 0.4, mode = 'train'):
         self.p = p
-    
+        self.mode = mode
+        
     def __call__(self, image, mask):
         # Determine the size of the output image
         enable = (1 if random.uniform(0, 1) < self.p else 0)
         if enable == 0:
             return {'image': image, 'mask': mask}
-        annotations = os.listdir('Markings/dup_markings/')
-        annotations_seg = os.listdir('Markings/dup_markings_segmaps/')
+        
+        annotation_pth, annotation_seg_path = (('Markings/markings/','Markings/markings_segmaps/') if self.mode=='train' 
+                                    else ('Markings/val_markings/','Markings/val_markings_segmaps/') )
+        
+        annotations = os.listdir(annotation_pth)
+        annotations_seg = os.listdir(annotation_seg_path)
         
         chosen_idx = random.randint(0, len(annotations)-1) 
         
-        annotation_pth = os.path.join('Markings/dup_markings/', (annotations[chosen_idx]))
-        annotation_seg_pth = os.path.join('Markings/dup_markings_segmaps/', (annotations_seg[chosen_idx]))
+        annotation_pth = os.path.join(annotation_pth, (annotations[chosen_idx]))
+        annotation_seg_pth = os.path.join(annotation_seg_path, (annotations_seg[chosen_idx]))
         
         image2 = np.array(Image.open(annotation_pth).convert("RGB"))
         mask2 = np.array(Image.open(annotation_seg_pth).convert("1"), dtype=np.uint8)
-
         
         rows = image.shape[0]
         cols = image.shape[1]
         # Create the output image and mask with the correct size
         image_out = image
         mask_out = mask
-        # Resize the second image to fit within the bounds of the first image
-        image2 = cv2.resize(image2, (cols//2, rows//2))
-        mask2 = cv2.resize(mask2, (cols//2, rows//2), interpolation=cv2.INTER_NEAREST)
-        # Overlay the segmented pixels of the second image onto the output image and mask
+        
+        # Random resize the second image to fit within the bounds of the first image
+        scale_factor = np.random.uniform(0.2, 0.8)
+        rand_size = (int(rows * scale_factor), int(cols * scale_factor))  
+        # Resize the image
+        image2 = cv2.resize(image2, rand_size)
+        mask2 = cv2.resize(mask2, rand_size, interpolation=cv2.INTER_NEAREST)
         
         x_offset = random.randint(0, cols - image2.shape[1])
         y_offset = random.randint(0, rows - image2.shape[0])
@@ -79,11 +86,16 @@ class AddAnnotation(object):
         mask_out[y_offset:y_offset+mask2.shape[0],
                 x_offset:x_offset+mask2.shape[1]][mask2 > 0] = 2
             
-        # # Create a colormap for the segmentation map
-
-        # # Map the values in the segmentation map to colors using the colormap
-        # # Create a NumPy array with values 0, 1, and 2
-        # colors = np.array([[0, 0, 0], [255, 255, 255], [0, 0, 255]])
-        # seg_map_rgb = colors[mask_out]
-
         return {'image': image_out, 'mask': mask_out}
+
+class Pad16Mul(object):
+        
+    def __call__(self, image, mask): 
+        width = max(image.shape[0], image.shape[1])
+        if width%16 != 0 : 
+            width = (( width // 16) + 1) * 16
+            
+        padded = A.PadIfNeeded(1600, 1600)(image = image, mask = mask)
+        
+        image, mask = padded['image'], padded['mask']  
+        return {'image': image, 'mask': mask}
