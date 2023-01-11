@@ -9,6 +9,7 @@ class BatchResult(NamedTuple):
     loss: float
     pixel_accuracy: float
     dice_score: float
+    jaccard_index: float
 
 
 class EpochResult(NamedTuple):
@@ -20,6 +21,7 @@ class EpochResult(NamedTuple):
     loss: float
     pixel_accuracy: float
     dice_score: float
+    jaccard_index: float
 
 
 class FitResult(NamedTuple):

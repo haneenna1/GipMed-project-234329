@@ -9,7 +9,7 @@ from tqdm import tqdm
 import utils
 from train_results_classes import BatchResult, EpochResult, FitResult
 
-from torchmetrics.classification import MulticlassAccuracy
+from torchmetrics.classification import MulticlassAccuracy, MulticlassJaccardIndex
 from torchmetrics import Dice
 
 
@@ -20,9 +20,10 @@ class Trainer:
         model_name, #give a name for the model, helps for automatiaclly naming the output folders of the run (e.g tensorboard logs, visualizations ..)
         optimizer, 
         loss_fn, 
-        sliding_window_validation = True, 
+        sliding_window_validation = False, 
         accuracy_metric = MulticlassAccuracy(num_classes=3), 
-        dice_metric = Dice(), 
+        dice_metric = Dice(num_classes=3, multiclass=True), 
+        jaccard_index = MulticlassJaccardIndex(num_classes = 3), 
         device = None, 
         load_model = None
     ):
@@ -36,6 +37,7 @@ class Trainer:
         self.loss_fn = loss_fn
         self.dice_metric = dice_metric
         self.accuracy_metric = accuracy_metric
+        self.jaccard_index = jaccard_index
         self.device = device
         if sliding_window_validation == True:
             self.validation_method = model.sliding_window_validation
@@ -52,6 +54,7 @@ class Trainer:
             model.to(self.device)
             self.dice_metric = dice_metric.to(self.device)
             self.accuracy_metric = accuracy_metric.to(self.device)
+            self.jaccard_index = jaccard_index.to(self.device)
         
     def train_batch(self, batch) -> BatchResult:
         batch_imgs, batch_masks = batch
@@ -68,13 +71,14 @@ class Trainer:
         pred_masks = self.model.predict_labels_from_scores(per_pixel_score_predictions) # per pixel classification
         dice_score = self.dice_metric(pred_masks, batch_masks.int())
         pixel_accuracy = self.accuracy_metric(pred_masks, batch_masks.unsqueeze(dim=1))
+        jaccard_index = self.jaccard_index(pred_masks, batch_masks.unsqueeze(dim=1))
 
         # backward
         self.optimizer.zero_grad()
         batch_loss.backward()
         self.optimizer.step()
 
-        return BatchResult(batch_loss, pixel_accuracy, dice_score)
+        return BatchResult(batch_loss, pixel_accuracy, dice_score, jaccard_index)
     
     def test_batch(self, batch) -> BatchResult:
         batch_imgs, batch_masks = batch
@@ -90,8 +94,10 @@ class Trainer:
             pred_masks = self.model.predict_labels_from_scores(per_pixel_score_predictions) # per pixel classification
             dice_score = self.dice_metric(pred_masks, batch_masks.int())
             pixel_accuracy = self.accuracy_metric(pred_masks,  batch_masks.unsqueeze(dim=1))
+            jaccard_index = self.jaccard_index(pred_masks, batch_masks.unsqueeze(dim=1))
 
-        return BatchResult(batch_loss, pixel_accuracy, dice_score)
+
+        return BatchResult(batch_loss, pixel_accuracy, dice_score, jaccard_index)
 
 
     def train_epoch(self, dl_train) -> EpochResult:
@@ -100,50 +106,61 @@ class Trainer:
         losses = []
         dice_scores = []
         accuracies = []
+        jaccards = []
         for batch in epoch_loop:
-
 
             batch_res = self.train_batch(batch)
             losses.append(batch_res.loss)
             accuracies.append(batch_res.pixel_accuracy)
             dice_scores.append(batch_res.dice_score)
+            jaccards.append(batch_res.jaccard_index)
+            
             # update tqdm
-            epoch_loop.set_postfix(loss=batch_res.loss.item(), dice = batch_res.dice_score.item(), pixel_accuracy = batch_res.pixel_accuracy.item())
-            # self.writer.add_scalar('Loss/train_Batch',batch_res.loss , self.train_cur_batch)
-            # self.writer.add_scalar('Accuracy/train_Batch', batch_res.pixel_accuracy, self.train_cur_batch)
-            # self.writer.add_scalar('Dice_Score/train_Batch',batch_res.dice_score, self.train_cur_batch)
-
+            epoch_loop.set_postfix(loss=batch_res.loss.item(), dice = batch_res.dice_score.item(), 
+                                   pixel_accuracy = batch_res.pixel_accuracy.item(),
+                                   jaccard_index = batch_res.jaccard_index.item())
+        
             self.train_cur_batch += 1
 
         mean_loss = torch.mean(torch.FloatTensor(losses))
         mean_acc = torch.mean(torch.FloatTensor(accuracies))
         mean_dice = torch.mean(torch.FloatTensor(dice_scores))
-        return EpochResult(mean_loss, mean_acc, mean_dice)
+        mean_jaccard = torch.mean(torch.FloatTensor(jaccards))
+        
+        return EpochResult(mean_loss, mean_acc, mean_dice, mean_jaccard)
 
 
     
     def validation_epoch(self, validation_dl):
+        epoch_loop = tqdm(validation_dl)
+        
         losses = []
         dice_scores = []
         accuracies = []
-        for batch in validation_dl:  # each iteration is one epoch
+        jaccards = []
+        
+        for batch in epoch_loop:  # each iteration is one epoch
 
             batch_res = self.test_batch(batch)
             losses.append(batch_res.loss)
             accuracies.append(batch_res.pixel_accuracy)
             dice_scores.append(batch_res.dice_score)
-
-
-            # self.writer.add_scalar('Loss/Validation_Batch',batch_res.loss , self.val_cur_batch)
-            # self.writer.add_scalar('Accuracy/Validation_Batch', batch_res.pixel_accuracy, self.val_cur_batch)
-            # self.writer.add_scalar('Dice_Score/Validation_Batch',batch_res.dice_score, self.val_cur_batch)
-
+            jaccards.append(batch_res.jaccard_index)
+            
+            # update tqdm
+            epoch_loop.set_postfix(loss=batch_res.loss.item(), dice = batch_res.dice_score.item(), 
+                                   pixel_accuracy = batch_res.pixel_accuracy.item(),
+                                   jaccard_index = batch_res.jaccard_index.item())
+            
             self.val_cur_batch += 1
 
         mean_loss = torch.mean(torch.FloatTensor(losses))
         mean_acc = torch.mean(torch.FloatTensor(accuracies))
         mean_dice = torch.mean(torch.FloatTensor(dice_scores))
-        return EpochResult(mean_loss, mean_acc, mean_dice)
+        mean_jaccard = torch.mean(torch.FloatTensor(jaccards))
+        
+        return EpochResult(mean_loss, mean_acc, mean_dice, mean_jaccard)
+
 
     def fit(
         self,
@@ -159,17 +176,18 @@ class Trainer:
         epochs_without_improvement = 0
 
         train_loss, train_acc, test_loss, test_acc = [], [], [], []
-        best_dice_score = None
+        best_accuracy = None
 
         for epoch in range(num_epochs):
             actual_num_epochs += 1
-            print(f'------------ epoch #{epoch} ------------ ')
 
+            print(f'------------ train epoch #{epoch} ------------ \n')
             train_epoch_result = self.train_epoch(dl_train)
             train_acc.append(train_epoch_result.pixel_accuracy)            
             train_loss.append(train_epoch_result.loss.item())
             
             if(dl_validation): #if we want to validate during fitting
+                print(f'------------ validation epoch #{epoch} ------------ \n')
                 val_epoch_result = self.validation_epoch(dl_validation)
                 test_acc.append(val_epoch_result.pixel_accuracy)
                 test_loss.append(val_epoch_result.loss.item())
@@ -177,21 +195,23 @@ class Trainer:
                 self.writer.add_scalars('Loss',  {'train':train_epoch_result.loss.item(),'validation': val_epoch_result.loss.item()}, epoch)
                 self.writer.add_scalars('Accuracy', {'train': train_epoch_result.pixel_accuracy.item(), 'validation':val_epoch_result.pixel_accuracy.item() },  epoch)
                 self.writer.add_scalars('Dice_Score', {'train':train_epoch_result.dice_score.item(), 'validation': val_epoch_result.dice_score.item() },  epoch)
+                self.writer.add_scalars('Jaccard_Index', {'train':train_epoch_result.jaccard_index.item(), 'validation': val_epoch_result.jaccard_index.item() },  epoch)
             
             
             else:
                 self.writer.add_scalars('Loss',  {'train':train_epoch_result.loss.item()}, epoch)
                 self.writer.add_scalars('Accuracy', {'train': train_epoch_result.pixel_accuracy.item()},  epoch)
                 self.writer.add_scalars('Dice_Score', {'train':train_epoch_result.dice_score.item()},  epoch)
+                self.writer.add_scalars('Jaccard_Index', {'train':train_epoch_result.jaccard_index.item()},  epoch)
                 
             self.writer.flush()
             if early_stopping is None:
                 continue
 
             # early stopping 
-            if best_dice_score is None or val_epoch_result.dice_score > best_dice_score:
+            if best_accuracy is None or val_epoch_result.dice_score > best_accuracy:
                 # ====== YOUR CODE: ======
-                best_dice_score = val_epoch_result.dice_score
+                best_accuracy = val_epoch_result.pixel_accuracy
                 epochs_without_improvement = 0
                 
                 if save_checkpoint != None:
