@@ -23,10 +23,10 @@ def segment_images(image_directory, seg_directory):
 
         # Apply Otsu's thresholding method to the grayscale image
         _, mask = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-        print(mask)
+        # print(mask)
         
     
         # Save the segmented image
-        cv2.imwrite(os.path.join(seg_directory, file).replace('_thumb.jpg', '_SegMap.png'), np.invert(mask))
+        cv2.imwrite(os.path.join(seg_directory, file).replace('.jpg', '_SegMap.png'), np.invert(mask))
 if __name__ == '__main__':
-    segment_images("Markings/original_markings/", "Markings/original_segmaps/")
+    segment_images("Markings/val_markings/", "Markings/val_markings_segmaps/")

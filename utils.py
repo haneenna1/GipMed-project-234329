@@ -22,6 +22,12 @@ def REAL_PATH(path):
 #     #changing to hardcoded path
 #     return os.path.join("/home/amir.bishara/workspace/project/final_repo/GipMed-project-234329", path)
 
+def save_012_mask_as_img(mask, path):
+    mask = mask.squeeze(0)
+    print('shape of mask = ', mask.shape)
+    colors = np.array([[0, 0, 0], [255, 255, 255], [0, 0, 255]])
+    mask_rgb = colors[mask.cpu().int()]
+    cv2.imwrite(path, mask_rgb)
 
 def save_checkpoint(state, checkpoint="my_checkpoint"):# you give inly the name of the checkpoint. this function cares for the exact path + extension  
     if not(os.path.isdir('model_checkpoints/')):
@@ -39,9 +45,8 @@ def load_checkpoint(model, optimizer = None, checkpoint_name="my_checkpoint"): #
     if optimizer:
         optimizer.load_state_dict(checkpoint["optimizer"])
 
-def save_validations(loader, model, inference_method, num_batches_for_save = 10, pred_folder="saved_predictions", layers_folder = 'layered_preds' ,device="cuda"):
+def save_validations(loader, model, inference_method, num_batches_for_save = 10, pred_folder="saved_predictions", device="cuda"):
     clear_folder(pred_folder)
-    clear_folder(layers_folder)
 
     model.eval()
     for idx, (x, y) in enumerate(loader):
@@ -57,8 +62,10 @@ def save_validations(loader, model, inference_method, num_batches_for_save = 10,
         ground_mask_path =  f"{REAL_PATH(pred_folder)}/img_{idx}_ground_mask.jpg"
 
         torchvision.utils.save_image(x, img_path)
-        torchvision.utils.save_image(pred_masks, predicted_mask_path)
-        torchvision.utils.save_image(y.unsqueeze(1), ground_mask_path)
+        
+        save_012_mask_as_img(pred_masks.squeeze(1), predicted_mask_path)
+        save_012_mask_as_img(y, ground_mask_path)
+        
 
     model.train()
 
@@ -69,7 +76,7 @@ def save_data_set(loader, folder_name="train_set"):
     clear_folder(folder_name)
     for idx, (x, y) in enumerate(loader):
         torchvision.utils.save_image(x, f"{REAL_PATH(folder_name)}/img_sample_{idx}.jpg")
-        torchvision.utils.save_image(y.unsqueeze(1), f"{REAL_PATH(folder_name)}/img_sample_mask{idx}.png")
+        save_012_mask_as_img(y, f"{REAL_PATH(folder_name)}/img_sample_mask{idx}.jpg")
     
 
 def get_data_loaders(img_dirs:list, mask_dirs:list, train_transforms = None, val_transforms = None, data_size = None,  validation_ratio = 0.15, train_batch_size = 3, validation_batch_size = 1, num_workers = 2,
@@ -267,6 +274,7 @@ def duplicate(num_duplicate = 30):
             
             image.save(dup_img_fl_pth)
             seg.save(dup_seg_fl_pth)
+        
         
 # def rename():
 #     markings_dir = '/home/haneenna/GipMed-project-234329/Markings/original_markings'

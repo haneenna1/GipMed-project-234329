@@ -33,7 +33,6 @@ class Inferer:
         if checkpoint_name != None:
             load_checkpoint(self.model, checkpoint_name= checkpoint_name)
 
-        
 
         self.accuracies_list = []
         self.dice_scores_list = []
@@ -48,7 +47,7 @@ class Inferer:
                 mask = mask.to(DEVICE)
 
                 per_pixel_pred_scores = self.model.sliding_window_validation(image, mask)
-                inferred_mask = self.model.predict_labels(per_pixel_pred_scores)
+                inferred_mask = self.model.predict_labels_from_scores(per_pixel_pred_scores)
                 
                 image_path = f"{REAL_PATH(self.out_folder)}/img_{index}.jpg"
                 mask_path = f"{REAL_PATH(self.out_folder)}/img_{index}_mask.jpg"
@@ -61,11 +60,13 @@ class Inferer:
                 if visulaize:
                     self.visulaize_shade(image_path, mask_path, inferred_mask_path, index)
                     self.visulaize_sharp(image_path, mask_path, inferred_mask_path, index)
+               
                 self.calculate_metrics(per_pixel_pred_scores,mask.unsqueeze(1))
-            print(f'------------ Inference ------------ ')
-            print(f'------------ ACCURACY:{torch.mean(torch.FloatTensor(self.accuracies_list))} ------------ ')
-            print(f'------------ DICE_SCORE:{torch.mean(torch.FloatTensor(self.dice_scores_list))}------------ ')
-            print(f'------------ JACARD_INDEX:{torch.mean(torch.FloatTensor(self.jacard_index_list))}------------ ')
+            
+            with open(os.path.join(self.out_folder, 'metrics_resilts'), 'w') as f:
+                f.write(f'------------ ACCURACY:{torch.mean(torch.FloatTensor(self.accuracies_list))} ------------ \n')
+                f.write(f'------------ DICE_SCORE:{torch.mean(torch.FloatTensor(self.dice_scores_list))}------------ \n')
+                f.write(f'------------ JACARD_INDEX:{torch.mean(torch.FloatTensor(self.jacard_index_list))}------------ \n')
 
     
     # Getting an overlayed image with a shade of colors [Green --- Blue]
@@ -146,7 +147,7 @@ class Inferer:
         jaccard = JaccardIndex('binary').to(DEVICE)
         dice_metric = Dice().to(DEVICE)
         accuracy_metric = BinaryAccuracy().to(DEVICE)
-        pred_masks = self.model.predict_labels(per_pixel_score_predictions) 
+        pred_masks = self.model.predict_labels_from_scores(per_pixel_score_predictions) 
         self.dice_scores_list.append(dice_metric(pred_masks, masks_batch.int()))
         self.accuracies_list.append(accuracy_metric(pred_masks, masks_batch))
         self.jacard_index_list.append(jaccard(pred_masks,masks_batch))
@@ -164,17 +165,17 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
         
-    parser.add_argument('--checkpoint-name', type=str)
-    parser.add_argument('--model-type', type=str)
-    parser.add_argument('--out-dir', type=str)
-    parser.add_argument('--datasets', nargs = '+')
+    parser.add_argument('--model-name', type=str)
+    parser.add_argument('--test-dataset', type=str)
     parser.add_argument('--data-size', type=int)
-    parser.add_argument('--batch-size', type=int, default=5)
+    parser.add_argument('--batch-size', type=int, default=1)
     parser.add_argument('--num-workers', type=int, default=10)
-    parser.add_argument('--visulaize', action='store_true', default=True)
+    parser.add_argument('--visualize', action='store_true', default=True)
     
     args = parser.parse_args()
 
+    print(args)
+    
     inference_transforms = [
             A.Compose([
                 A.Normalize(
@@ -186,7 +187,10 @@ if __name__ == "__main__":
             ])
         ]
     
-    test_thumbnails_dir, test_masks_dir = get_datasets_paths(args.datasets)
+    test_thumbnails_dir, test_masks_dir = get_datasets_paths([args.test_dataset])
     dataloader, _ = get_data_loaders(test_thumbnails_dir, test_masks_dir, inference_transforms, val_transforms= None, validation_ratio=0, data_size = args.data_size, num_workers= args.num_workers, train_batch_size= args.batch_size, shuffle=False) 
-    unet_inferer = Inferer(args.checkpoint_name, out_folder=args.out_dir)
+    
+    out_folder = os.path.join("test_inference/", args.model_name, args.test_dataset)
+
+    unet_inferer = Inferer(args.model_name, out_folder=out_folder)
     unet_inferer.infer(dataloader, visulaize=args.visualize)
