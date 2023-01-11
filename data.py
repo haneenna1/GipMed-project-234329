@@ -8,11 +8,11 @@ import cv2
 from torchvision.utils import save_image
 import ntpath
 
-IMAGE_HEIGHT = 1024
-IMAGE_WIDTH = 1024
+IMAGE_HEIGHT = 512
+IMAGE_WIDTH = 512
 
 class ThumbnailsDataset(Dataset):
-    def __init__(self, image_dirs:list, mask_dirs:list, indices,transform=list, visualize_aug = True):
+    def __init__(self, image_dirs:list, mask_dirs:list, indices,transform=list, visualize_aug = False):
         self.image_dirs = image_dirs
         self.mask_dirs = mask_dirs
         self.transform = transform
@@ -33,6 +33,12 @@ class ThumbnailsDataset(Dataset):
 
     def __len__(self):
         return len(self.indices)
+    
+    @staticmethod
+    def save_012_mask_as_img(mask, path):
+        colors = np.array([[0, 0, 0], [255, 255, 255], [0, 0, 255]])
+        mask_rgb = colors[mask.int()]
+        cv2.imwrite(path, mask_rgb)
 
     def __getitem__(self, idx):
         img_path = self.images[self.indices[idx]]
@@ -45,6 +51,7 @@ class ThumbnailsDataset(Dataset):
             orig_image = Image.fromarray(image)
             if not(os.path.isdir('./augmented_imgs')):
                 os.mkdir('./augmented_imgs')
+            
             orig_image.save(os.path.join('./augmented_imgs', ntpath.basename(img_path)))
 
         if self.transform is not None:
@@ -53,23 +60,22 @@ class ThumbnailsDataset(Dataset):
                 for t in self.transform:
                     augmentations = t(image=image, mask=mask)
                     image = augmentations["image"]
-                    
                     mask = augmentations["mask"]
-                colors = np.array([[0, 0, 0], [255, 255, 255], [0, 0, 255]])
-                mask_rgb = colors[mask.int()]
+                    
+                
             #one transform
             else:
                 augmentations = self.transform(image=image, mask=mask)
                 image = augmentations["image"]
-                
-                colors = np.array([[0, 0, 0], [255, 255, 255], [0, 0, 255]])
                 mask = augmentations["mask"]
-                mask_rgb = colors[mask.int()]
+                
         if self.visualize_aug:
+            
             aug_img_name = ntpath.basename(img_path).replace("_thumb", "_aug")
+            aug_mask_name = ntpath.basename(img_path).replace("_thumb", "_seg")
             save_image(image, os.path.join('./augmented_imgs', aug_img_name))
-            cv2.imwrite(os.path.join('./augmented_imgs', 'seg_' + aug_img_name), mask_rgb)
-
+            self.save_012_mask_as_img(mask, os.path.join('./augmented_imgs', aug_mask_name))
+            
         return image, mask
 
     
