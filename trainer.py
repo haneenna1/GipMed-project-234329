@@ -21,9 +21,9 @@ class Trainer:
         optimizer, 
         loss_fn, 
         sliding_window_validation = False, 
-        accuracy_metric = MulticlassAccuracy(num_classes=3), 
+        accuracy_metric = MulticlassAccuracy(num_classes=3, average ='weighted'), 
         dice_metric = Dice(num_classes=3, multiclass=True), 
-        jaccard_index = MulticlassJaccardIndex(num_classes = 3), 
+        jaccard_index = MulticlassJaccardIndex(num_classes = 3, average ='weighted'), 
         device = None, 
         load_model = None
     ):
