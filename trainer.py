@@ -211,7 +211,7 @@ class Trainer:
             # early stopping 
             if best_accuracy is None or val_epoch_result.dice_score > best_accuracy:
                 # ====== YOUR CODE: ======
-                best_accuracy = val_epoch_result.pixel_accuracy
+                best_accuracy = val_epoch_result.dice_score
                 epochs_without_improvement = 0
                 
                 if save_checkpoint != None:
