@@ -14,18 +14,18 @@ BATCH_SIZE = 10
 MANUAL_SEED = 42
 
 
-def REAL_PATH(path):
-    #changing to hardcoded path
-    return os.path.join("/home/haneenna/GipMed-project-234329", path)
-
 # def REAL_PATH(path):
 #     #changing to hardcoded path
-#     return os.path.join("/home/amir.bishara/workspace/project/final_repo/GipMed-project-234329", path)
+#     return os.path.join("/home/haneenna/GipMed-project-234329", path)
+
+def REAL_PATH(path):
+    #changing to hardcoded path
+    return os.path.join("/home/amir.bishara/workspace/project/final_repo/GipMed-project-234329", path)
 
 def save_012_mask_as_img(mask, path):
     mask = mask.squeeze(0)
     print('shape of mask = ', mask.shape)
-    colors = np.array([[0, 0, 0], [255, 255, 255], [0, 0, 255]])
+    colors = np.array([[0, 0, 0], [255, 255, 255], [0, 128, 255]])
     mask_rgb = colors[mask.cpu().int()]
     cv2.imwrite(path, mask_rgb)
 
