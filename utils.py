@@ -16,16 +16,11 @@ MANUAL_SEED = 42
 
 # def REAL_PATH(path):
 #     #changing to hardcoded path
-#     return os.path.join("/home/haneenna/GipMed-project-234329", path)
-
-def REAL_PATH(path):
-    #changing to hardcoded path
-    return os.path.join("/home/amir.bishara/workspace/project/final_repo/GipMed-project-234329", path)
+#     return os.path.join("/home/amir.bishara/workspace/project/final_repo/GipMed-project-234329", path)
 
 def save_012_mask_as_img(mask, path):
     mask = mask.squeeze(0)
-    print('shape of mask = ', mask.shape)
-    colors = np.array([[0, 0, 0], [255, 255, 255], [0, 128, 255]])
+    colors = np.array([[0, 0, 0], [255, 255, 255], [0, 255, 255]])
     mask_rgb = colors[mask.cpu().int()]
     cv2.imwrite(path, mask_rgb)
 
@@ -45,8 +40,8 @@ def load_checkpoint(model, optimizer = None, checkpoint_name="my_checkpoint"): #
     if optimizer:
         optimizer.load_state_dict(checkpoint["optimizer"])
 
-def save_validations(loader, model, inference_method, num_batches_for_save = 10, pred_folder="saved_predictions", device="cuda"):
-    clear_folder(pred_folder)
+def save_validations(loader, model, inference_method, num_batches_for_save = 10, out_folder="saved_predictions", device="cuda"):
+    clear_folder(out_folder)
 
     model.eval()
     for idx, (x, y) in enumerate(loader):
@@ -57,14 +52,14 @@ def save_validations(loader, model, inference_method, num_batches_for_save = 10,
             per_pixel_score_predictions = inference_method(x) # TODO: check it??
             pred_masks = model.predict_labels_from_scores(per_pixel_score_predictions).float()
 
-        img_path = f"{REAL_PATH(pred_folder)}/img_{idx}.jpg"
-        predicted_mask_path = f"{REAL_PATH(pred_folder)}/img_{idx}_predicted_mask.jpg"
-        ground_mask_path =  f"{REAL_PATH(pred_folder)}/img_{idx}_ground_mask.jpg"
+        img_path = f"{REAL_PATH(out_folder)}/img_{idx}.jpg"
+        predicted_mask_path = f"{REAL_PATH(out_folder)}/img_{idx}_predicted_mask.jpg"
+        ground_mask_path =  f"{REAL_PATH(out_folder)}/img_{idx}_ground_mask.jpg"
 
         torchvision.utils.save_image(x, img_path)
-        
         save_012_mask_as_img(pred_masks.squeeze(1), predicted_mask_path)
         save_012_mask_as_img(y, ground_mask_path)
+        # visulaize_sharp(out_folder, img_path, ground_mask_path, predicted_mask_path, idx)
         
 
     model.train()
@@ -163,7 +158,7 @@ def clear_folder(dir):
 def get_datasets_paths(datasets:list):
     datasetsNames = ["ABCTB_TIF", "Carmel", "Covilha", "Haemek",
                      "HEROHE", "Ipatimup", "Sheba", "TCGA", "TMA", "Markings"]
-    assert len(set(datasets).intersection(set(datasetsNames))) == min(len(datasetsNames),len(datasets))
+    # assert len(set(datasets).intersection(set(datasetsNames))) == min(len(datasetsNames),len(datasets))
     image_dirs = []
     mask_dirs = []
     
@@ -196,6 +191,27 @@ def get_datasets_paths(datasets:list):
                 mask_dirs.append(os.path.join(basePath, dataset, "Benign",
                                               "Batch_" + str(counter), "BENIGN" + str(counter),
                                               "SegData", "SegMaps"))
+        if dataset.startswith("Carmel") and dataset!='Carmel':
+            batch_num = int(dataset[6:])
+            if batch_num <= 8:
+                folder = "1-8"
+            else:
+                folder = "9-11"
+                
+            image_dirs.append(os.path.join(basePath, 'Carmel', folder,
+                                                "Batch_" + str(batch_num), "CARMEL" + str(batch_num),
+                                                "SegData", "Thumbs"))
+            mask_dirs.append(os.path.join(basePath, 'Carmel', folder,
+                                            "Batch_" + str(batch_num), "CARMEL" + str(batch_num),
+                                            "SegData", "SegMaps"))
+            if batch_num in range(1, 5):
+                image_dirs.append(os.path.join(basePath, 'Carmel', "Benign",
+                                                "Batch_" + str(batch_num), "BENIGN" + str(batch_num),
+                                                "SegData", "Thumbs"))
+                mask_dirs.append(os.path.join(basePath, 'Carmel', "Benign",
+                                                "Batch_" + str(batch_num), "BENIGN" + str(batch_num),
+                                                "SegData", "SegMaps"))
+            
         if dataset == "Sheba":
             for counter in range(2, 7):
                 image_dirs.append(os.path.join(basePath, dataset,

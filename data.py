@@ -36,7 +36,7 @@ class ThumbnailsDataset(Dataset):
     
     @staticmethod
     def save_012_mask_as_img(mask, path):
-        colors = np.array([[0, 0, 0], [255, 255, 255], [0, 0, 255]])
+        colors = np.array([[0, 0, 0], [255, 255, 255], [0, 255, 255]])
         mask_rgb = colors[mask.int()]
         cv2.imwrite(path, mask_rgb)
 

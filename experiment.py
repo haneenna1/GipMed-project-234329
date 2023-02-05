@@ -33,6 +33,7 @@ def experiment(
     model_name, 
     model_type, 
     datasets, 
+    add_artifacts = True, 
     data_size = None, 
     num_epochs = 50, 
     early_stopping = 5,
@@ -46,7 +47,8 @@ def experiment(
     
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print(f'******************** device you are using is : {device}')
-    model = MODELS[model_type](in_channels=3, out_channels=3).to(device)
+    out_channels = (3 if add_artifacts else 2)
+    model = MODELS[model_type](in_channels=3, out_channels=out_channels).to(device)
     optimizer = optim.Adam(model.parameters(), lr = LEARNING_RATE)
     loss_fn = nn.CrossEntropyLoss()
 
@@ -57,7 +59,7 @@ def experiment(
             A.PadIfNeeded(input_size, input_size),
             A.CropNonEmptyMaskIfExists(height=input_size,width=input_size),
         ]),
-        C.AddAnnotation(p=0.4),
+        C.AddAnnotation(p=(0.3 if add_artifacts else 0)),
         A.Compose([
             A.ColorJitter(),
             A.Rotate(limit=35, p=1.0),
@@ -73,9 +75,11 @@ def experiment(
     ]
     # should passed when using the centerCrop without sliding window
     val_transform = [
-        C.Pad16Mul(),
-        A.CenterCrop(1600, 1600),
-        C.AddAnnotation(p=0.3, mode = 'validation'),
+        A.Compose([
+            A.PadIfNeeded(input_size, input_size),
+            A.CropNonEmptyMaskIfExists(height=input_size,width=input_size),
+        ]),
+        C.AddAnnotation(p=(0.3 if add_artifacts else 0), mode = 'validation'),
         A.Compose([
             A.Normalize(
                 mean=[0.0, 0.0, 0.0],
@@ -124,6 +128,7 @@ if __name__ == "__main__":
     parser.add_argument('--model-name', type=str)
     parser.add_argument('--model-type', type=str)
     parser.add_argument('--datasets', nargs = '+')
+    parser.add_argument('--add-artifacts', action='store_true', default=False)
     parser.add_argument('--data-size', type=int)
     parser.add_argument('--num-epochs', type=int, default=50)
     parser.add_argument('--early-stopping', type=int, default=5)

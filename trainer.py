@@ -9,7 +9,7 @@ from tqdm import tqdm
 import utils
 from train_results_classes import BatchResult, EpochResult, FitResult
 
-from torchmetrics.classification import MulticlassAccuracy, MulticlassJaccardIndex
+from torchmetrics.classification import MulticlassAccuracy, MulticlassJaccardIndex, BinaryAccuracy, BinaryJaccardIndex
 from torchmetrics import Dice
 
 
@@ -20,10 +20,8 @@ class Trainer:
         model_name, #give a name for the model, helps for automatiaclly naming the output folders of the run (e.g tensorboard logs, visualizations ..)
         optimizer, 
         loss_fn, 
+        num_classes = 3,
         sliding_window_validation = False, 
-        accuracy_metric = MulticlassAccuracy(num_classes=3, average ='weighted'), 
-        dice_metric = Dice(num_classes=3, multiclass=True), 
-        jaccard_index = MulticlassJaccardIndex(num_classes = 3, average ='weighted'), 
         device = None, 
         load_model = None
     ):
@@ -35,9 +33,16 @@ class Trainer:
         if load_model is not None:
             utils.load_checkpoint(self.model, self.optimizer, load_model)
         self.loss_fn = loss_fn
-        self.dice_metric = dice_metric
-        self.accuracy_metric = accuracy_metric
-        self.jaccard_index = jaccard_index
+        
+        self.accuracy_metric = (MulticlassAccuracy(num_classes=3, ignore_index=0, average ='weighted') if num_classes ==3 
+                                else BinaryAccuracy()).to(device=device)
+        
+        self.dice_metric = Dice(num_classes=num_classes, ignore_index=0).to(device=device)
+        
+        self.jaccard_index = (MulticlassJaccardIndex(num_classes = 3, ignore_index=0, average ='weighted') if num_classes ==3
+                                else BinaryJaccardIndex()).to(device=device)
+        
+        
         self.device = device
         if sliding_window_validation == True:
             self.validation_method = model.sliding_window_validation
@@ -52,9 +57,9 @@ class Trainer:
         
         if self.device:
             model.to(self.device)
-            self.dice_metric = dice_metric.to(self.device)
-            self.accuracy_metric = accuracy_metric.to(self.device)
-            self.jaccard_index = jaccard_index.to(self.device)
+            self.dice_metric = self.dice_metric.to(self.device)
+            self.accuracy_metric = self.accuracy_metric.to(self.device)
+            self.jaccard_index = self.jaccard_index.to(self.device)
         
     def train_batch(self, batch) -> BatchResult:
         batch_imgs, batch_masks = batch
@@ -108,7 +113,6 @@ class Trainer:
         accuracies = []
         jaccards = []
         for batch in epoch_loop:
-
             batch_res = self.train_batch(batch)
             losses.append(batch_res.loss)
             accuracies.append(batch_res.pixel_accuracy)
@@ -209,9 +213,9 @@ class Trainer:
                 continue
 
             # early stopping 
-            if best_accuracy is None or val_epoch_result.dice_score > best_accuracy:
+            if best_accuracy is None or val_epoch_result.pixel_accuracy > best_accuracy:
                 # ====== YOUR CODE: ======
-                best_accuracy = val_epoch_result.dice_score
+                best_accuracy = val_epoch_result.pixel_accuracy
                 epochs_without_improvement = 0
                 
                 if save_checkpoint != None:
@@ -233,3 +237,10 @@ class Trainer:
 
 
 
+
+
+
+metric = BinaryJaccardIndex(average ='weighted')
+t1 = torch.Tensor([0,0,0,0])
+t2 = torch.Tensor([0,0,0,0])
+print(metric(t1, t2))

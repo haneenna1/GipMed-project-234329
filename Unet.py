@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 from monai.inferers import sliding_window_inference
-from data import IMAGE_HEIGHT,IMAGE_WIDTH
 
 
 class DoubleConv(nn.Module):
@@ -112,9 +111,9 @@ class Unet(nn.Module):
             mask_batch is not none if this is a validation image with a ground truth mask. 
             
         """
-        
-        roi_size = (IMAGE_HEIGHT, IMAGE_WIDTH)
-        sw_batch_size = img_batch.shape[0]
-        per_pixel_score_predictions = sliding_window_inference(img_batch, roi_size, sw_batch_size, self, overlap=0, progress=verbose)
-        return per_pixel_score_predictions
+        with torch.no_grad():
+            roi_size = 1440
+            sw_batch_size = img_batch.shape[0]
+            per_pixel_score_predictions = sliding_window_inference(img_batch, roi_size, sw_batch_size, self, overlap=0, progress=verbose)
+            return per_pixel_score_predictions
 
