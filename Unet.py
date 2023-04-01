@@ -101,6 +101,18 @@ class Unet(nn.Module):
 
         return pred_labels
 
+    def get_softmax_prob(self,pred_scores):
+        '''
+            given class raw scores (un normalized) -> returns per pixel classification
+        '''
+        with torch.no_grad():
+            if self.out_channels == 1:
+                pred_proba = nn.Sigmoid()(pred_scores)
+            else : 
+                pred_proba = nn.Softmax(dim = 1)(pred_scores)
+
+        return pred_proba
+
     def predict_mask(self, img_batch): 
         self.predict_labels_from_scores(self.forward(img_batch))
 
@@ -114,6 +126,7 @@ class Unet(nn.Module):
         with torch.no_grad():
             roi_size = 1440
             sw_batch_size = img_batch.shape[0]
-            per_pixel_score_predictions = sliding_window_inference(img_batch, roi_size, sw_batch_size, self, overlap=0, progress=verbose)
+            per_pixel_score_predictions = sliding_window_inference(img_batch, roi_size, sw_batch_size, self,padding_mode='reflect', overlap=0, progress=verbose)
             return per_pixel_score_predictions
+
 

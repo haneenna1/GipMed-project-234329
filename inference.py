@@ -6,6 +6,8 @@ from random import choices
 import numpy as np
 import cv2
 import argparse
+import matplotlib.pyplot as plt
+
 import PIL.Image
 PIL.Image.MAX_IMAGE_PIXELS = None
 import albumentations as A
@@ -66,6 +68,11 @@ class Inferer:
 
                 per_pixel_pred_scores = self.model.sliding_window_validation(image, mask)
                 inferred_mask = self.model.predict_labels_from_scores(per_pixel_pred_scores)
+                softmax_prob = self.model.get_softmax_prob(per_pixel_pred_scores)
+
+                # Create HeatMap for each class
+                softmax_prob_numpy = np.squeeze(np.array(softmax_prob.cpu()))
+                self.create_heat_map(softmax_prob_numpy, index)
 
                 image_path = f"{REAL_PATH(self.out_folder)}/img_{index}.jpg"
                 mask_path = f"{REAL_PATH(self.out_folder)}/img_{index}_mask.jpg"
@@ -173,6 +180,22 @@ class Inferer:
         self.accuracies_list.append(self.accuracy_metric(pred_masks, masks_batch.int()))
         self.jacard_index_list.append(self.jaccard_index(pred_masks,masks_batch.int()))
 
+    def create_heat_map(self, softmax_scores, img_index):
+        classes = ['Background', 'Tissue', 'Artifacts']
+        for class_index, class_name in enumerate(classes):
+            class_scores = softmax_scores[class_index,:,:]
+
+            # create the heatmap using the imshow() function
+            fig = plt.figure(figsize=(10, 8))
+            ax = fig.add_subplot(111)
+            im = ax.imshow(class_scores, cmap='coolwarm')
+            plt.colorbar(im)
+            ax.set_title(f'Heatmap of class {class_name} softmax scores')
+
+            heatmap_path = f"{REAL_PATH(self.out_folder)}/img_{img_index}_heatmap_class_{class_index}.png"
+            # save the heatmap to a file
+            plt.savefig(heatmap_path, dpi=400)
+            plt.show()
 
 if __name__ == "__main__": 
 

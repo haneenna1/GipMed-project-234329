@@ -134,6 +134,18 @@ class FusionNet(nn.Module):
 
         return pred_labels
 
+    def get_softmax_prob(self,pred_scores):
+        '''
+            given class raw scores (un normalized) -> returns per pixel classification
+        '''
+        with torch.no_grad():
+            if self.out_channels == 1:
+                pred_proba = nn.Sigmoid()(pred_scores)
+            else : 
+                pred_proba = nn.Softmax(dim = 1)(pred_scores)
+
+        return pred_proba
+        
     def predict_mask(self, img_batch): 
         self.predict_labels_from_scores(self.forward(img_batch))
 

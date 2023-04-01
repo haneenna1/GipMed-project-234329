@@ -9,6 +9,7 @@ import sklearn.model_selection
 import PIL
 from PIL.Image import Image
 import numpy as np
+from matplotlib import pyplot as plt
 
 BATCH_SIZE = 10
 MANUAL_SEED = 42
@@ -308,5 +309,55 @@ def duplicate(num_duplicate = 30):
 #         image.save(img_fl_pth.replace("_0_thumb.jpg", f"_thumb.jpg"))
 #         seg.save(seg_fl_pth.replace("_0_SegMap.png", f"_SegMap.png"))
 
+
+# Building histogram of the (hue, saturation, and value) to do more analysis on the photos
+def mean_color_hist(images):
+    hist = np.zeros((3,256), dtype=np.float32)
+    for img in images:
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        for i in range(3):
+            hist[i] += cv2.calcHist([img], [i], None, [256], [0,256]).ravel()
+    return hist / len(images)
+
+def plot_mean_hist(mean_hist, save_path ):
+    plt.figure()
+    color = ['blue', 'green', 'red']
+    bins = range(256)
+    for i in range(3):
+                plt.bar(bins, mean_hist[i], color=color[i], label=["Hue", "Saturation", "Value"][i], width=1, alpha=0.5)
+    plt.xlim([0,256])
+    plt.xlabel("Bins")
+    plt.ylabel("Frequency")
+    plt.legend(loc='upper right')
+    plt.title("HSV histogram")
+    plt.savefig(save_path)
+    plt.show()
+
+def build_HSV_histogram(images_path, save_path):
+    images = [cv2.imread(path) for path in images_path]
+    mean_hist = mean_color_hist(images)
+    plot_mean_hist(mean_hist, save_path)
+
+def calculate_contrast(image):
+    mean, std_dev = cv2.meanStdDev(image)
+    return std_dev[0][0]
+
+# Building histogram of contrast (different between brightest and darkest pixel) to do more analysis on the photos
+
+def plot_contrast_hist(contrasts, save_path ):
+    plt.figure()
+    plt.hist(contrasts, bins=20, label='Contrast')
+    plt.xlabel("Contrast Value")
+    plt.ylabel("Frequency")
+    plt.legend(loc='upper right')
+    plt.title("Contrast Histogram")
+    plt.savefig(save_path)
+    plt.show()
+
+def build_contrast_histogram(images_path, save_path):
+    images = [cv2.imread(path) for path in images_path]
+    mean_hist = [calculate_contrast(image) for image in images]
+    plot_contrast_hist(mean_hist, save_path)
+
 if __name__ == '__main__':
-    duplicate()
+    build_HSV_histogram(['./GREEN/'+e for e in os.listdir("./GREEN")], 'my_green_contrast_histogram.png')
